@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "lib": [
+      "ES2017",
+      "DOM"
+    ],
+    "moduleResolution": "node",
+    "baseUrl": "src",
+    "esModuleInterop": true,
+    "noImplicitAny": true
+  },
+  "exclude": [
+    "./tests/",
+    "./node_modules/",
+    "./dist/"
+  ]
+}

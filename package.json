@@ -1,0 +1,26 @@
+{
+  "name": "twixt",
+  "version": "1.0.0",
+  "description": "A classic 2-player game",
+  "main": "index.js",
+  "repository": "https://github.com/mikegw/twixt.git",
+  "author": "Mike Williamson <mikewilliamson86@gmail.com>",
+  "license": "MIT",
+  "scripts": {
+    "build": "node scripts/build.mjs --sourcemap",
+    "test": "mocha -r ts-node/register 'tests/**/*.ts",
+    "watch": "yarn build --watch"
+  },
+  "dependencies": {
+    "typescript": "^5.0.4"
+  },
+  "devDependencies": {
+    "@types/chai": "^4.3.4",
+    "@types/mocha": "^10.0.1",
+    "chai": "^4.3.7",
+    "esbuild": "^0.17.16",
+    "mocha": "^10.2.0",
+    "mri": "^1.2.0",
+    "ts-node": "^10.9.1"
+  }
+}
