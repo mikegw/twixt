@@ -3,12 +3,12 @@ import color = Mocha.reporters.Base.color;
 import { Color } from "./color";
 
 const EMPTY_SLOT_RADIUS = 4
-const EMPTY_SLOT_COLOR = '#777'
+const EMPTY_SLOT_COLOR = '#999'
 
 const PEG_RADIUS = 7
 const COLORS: Record<Color, string> = {
-  'RED': '#C71585',
-  'BLUE': '#4682B4'
+  'RED': '#F72595',
+  'BLUE': '#4682F4'
 }
 
 const CONNECTION_WIDTH = 5

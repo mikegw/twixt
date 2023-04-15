@@ -169,11 +169,11 @@
 
   // src/renderer.ts
   var EMPTY_SLOT_RADIUS = 4;
-  var EMPTY_SLOT_COLOR = "#777";
+  var EMPTY_SLOT_COLOR = "#999";
   var PEG_RADIUS = 7;
   var COLORS = {
-    "RED": "#C71585",
-    "BLUE": "#4682B4"
+    "RED": "#F72595",
+    "BLUE": "#4682F4"
   };
   var CONNECTION_WIDTH = 5;
   var BOUNDARY_WIDTH = 3;
