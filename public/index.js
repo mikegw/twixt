@@ -188,37 +188,49 @@
       this.canvas = canvas2;
       this.ctx = ctx;
       this.board = board;
+      this.drawEmptyBoard();
     }
     draw() {
       this.clear();
-      this.drawEmptySlots();
-      this.drawBoundaries();
+      this.redrawEmptyBoard();
       this.drawConnections();
       this.drawPegs();
     }
     clear() {
       this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     }
-    drawEmptySlots() {
+    drawEmptyBoard() {
+      this.offscreenCanvas = document.createElement("canvas");
+      this.offscreenCanvas.width = this.canvas.width;
+      this.offscreenCanvas.height = this.canvas.height;
+      const context = this.offscreenCanvas.getContext("2d");
+      this.drawEmptySlots(context);
+      this.drawBoundaries(context);
+    }
+    drawEmptySlots(context) {
       for (let slot of this.board.slots) {
         this.drawCircle(
           this.positionToCoordinates(slot.position),
           EMPTY_SLOT_RADIUS,
-          EMPTY_SLOT_COLOR
+          EMPTY_SLOT_COLOR,
+          context
         );
       }
     }
-    drawBoundaries() {
+    drawBoundaries(context) {
       const min = this.slotGapSize;
       const max = this.boardImageSize - min;
       const topLeft = { x: min, y: min };
       const topRight = { x: max, y: min };
       const bottomLeft = { x: min, y: max };
       const bottomRight = { x: max, y: max };
-      this.drawLine(COLORS["RED" /* Red */], BOUNDARY_WIDTH, topLeft, topRight);
-      this.drawLine(COLORS["RED" /* Red */], BOUNDARY_WIDTH, bottomLeft, bottomRight);
-      this.drawLine(COLORS["BLUE" /* Blue */], BOUNDARY_WIDTH, topLeft, bottomLeft);
-      this.drawLine(COLORS["BLUE" /* Blue */], BOUNDARY_WIDTH, topRight, bottomRight);
+      this.drawLine(COLORS["RED" /* Red */], BOUNDARY_WIDTH, topLeft, topRight, context);
+      this.drawLine(COLORS["RED" /* Red */], BOUNDARY_WIDTH, bottomLeft, bottomRight, context);
+      this.drawLine(COLORS["BLUE" /* Blue */], BOUNDARY_WIDTH, topLeft, bottomLeft, context);
+      this.drawLine(COLORS["BLUE" /* Blue */], BOUNDARY_WIDTH, topRight, bottomRight, context);
+    }
+    redrawEmptyBoard() {
+      this.ctx.drawImage(this.offscreenCanvas, 0, 0, this.canvas.width, this.canvas.height);
     }
     drawConnections() {
       for (let connection of this.board.connections) {
@@ -242,20 +254,22 @@
         );
       }
     }
-    drawCircle(coordinates, radius, color) {
-      this.ctx.fillStyle = color;
-      this.ctx.beginPath();
-      this.ctx.arc(coordinates.x, coordinates.y, radius, 0, 2 * Math.PI);
-      this.ctx.fill();
+    drawCircle(coordinates, radius, color, context) {
+      const ctx = context || this.ctx;
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(coordinates.x, coordinates.y, radius, 0, 2 * Math.PI);
+      ctx.fill();
     }
-    drawLine(color, width, from, to) {
-      this.ctx.strokeStyle = color;
-      this.ctx.lineWidth = width;
-      this.ctx.lineCap = "round";
-      this.ctx.beginPath();
-      this.ctx.moveTo(from.x, from.y);
-      this.ctx.lineTo(to.x, to.y);
-      this.ctx.stroke();
+    drawLine(color, width, from, to, context) {
+      const ctx = context || this.ctx;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = width;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(from.x, from.y);
+      ctx.lineTo(to.x, to.y);
+      ctx.stroke();
     }
     positionToCoordinates(position) {
       return {
