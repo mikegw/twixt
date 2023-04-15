@@ -15,11 +15,15 @@ const esbuildOptions = {
     sourcemap: prog.sourcemap,
 }
 
-let ctx = await esbuild.context(esbuildOptions)
+
 
 if (prog.watch) {
+    let ctx = await esbuild.context(esbuildOptions)
     await ctx.watch()
-} else {
+} else if(prog.serve) {
+    let ctx = await esbuild.context(esbuildOptions)
     await ctx.serve()
+} else {
+    await esbuild.build(esbuildOptions)
 }
 
