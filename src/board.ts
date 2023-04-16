@@ -1,9 +1,11 @@
-import { addVectors, sameVectors, Vector } from "./vector";
+import { addVectors, sameVectors, Vector } from "./board/vector";
 import { Color } from "./color";
 import { Slot } from "./board/slot";
 import { Connection } from "./board/connection";
 
 export type Position = Vector
+
+const BOARD_SIZE = 18
 
 export class Board {
   private static neighborDiffs: Vector[] = [
@@ -21,7 +23,7 @@ export class Board {
   readonly connections: Connection[] = []
   readonly size: number
 
-  constructor(size = 16) {
+  constructor(size = BOARD_SIZE) {
     this.size = size
     this.populateSlots(size)
   }
@@ -77,8 +79,8 @@ export class Board {
   }
 
   private populateSlots(size: number) {
-    for (let row = 0; row <=size; row++) {
-      for (let column = 0; column <= size; column++) {
+    for (let row = 0; row < size; row++) {
+      for (let column = 0; column < size; column++) {
         const position = { row, column }
         if (this.corners.some(corner => sameVectors(position, corner))) continue
 

@@ -43,6 +43,18 @@ export class Game {
   endTurn() {
     this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length
   }
+
+  parse(moves: string) {
+    for (let move of moves.split(',')) {
+      const rawColumn = move[0]
+      const rawRow = move.substring(1)
+      const position = {
+        column: rawRow.charCodeAt(0) - 'A'.charCodeAt(0),
+        row: Number(rawColumn)
+      }
+      console.log(this.placePeg(position))
+    }
+  }
 }
 
 type PlacePegResult = {

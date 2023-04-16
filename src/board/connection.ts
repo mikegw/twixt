@@ -1,6 +1,6 @@
 import { Color } from "../color";
 import { Slot } from "./slot";
-import { intersects, sameVectors, subtractVectors, Vector } from "../vector";
+import { intersects, sameVectors, subtractVectors, Vector } from "./vector";
 import { Position } from "../board";
 
 export class Connection {

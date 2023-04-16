@@ -1,55 +1,48 @@
+import { GameUI } from "./gameUI";
 import { Game } from "./game";
-import { Renderer } from "./renderer";
+import { GameData } from "./gameData";
 
-const canvas = document.getElementById('game-canvas') as HTMLCanvasElement
-const setCanvasDimensions = () => {
-  canvas.width = Math.min(canvas.offsetHeight, canvas.offsetWidth)
-  canvas.height = Math.min(canvas.offsetHeight, canvas.offsetWidth)
+const gameIdSpan = document.getElementById('game-id-span')
+const gameIdCopyButton = document.getElementById('game-id-copy')
+const gameIdInfo = document.getElementById('game-id-info')
+const gameStart = document.getElementById('game-start')
+const gameIdInput = document.getElementById('game-id-input') as HTMLInputElement
+const joinButton = document.getElementById('join-button')
+const startButton = document.getElementById('start-button');
+
+
+const startGame = (id: string = null) => {
+  const game = new Game()
+  const gameData = new GameData(id)
+  const gameEngine = new GameUI(game, gameData)
+
+  gameIdSpan.innerText = gameData.gameId
+  gameIdCopyButton.onclick = () => navigator.clipboard.writeText(gameData.gameId)
+
+  gameStart.style.display = 'none'
+  gameIdInfo.style.display = 'flex'
+
+  gameEngine.start()
 }
 
-const game = new Game()
-
-const renderer = new Renderer(
-  canvas,
-  canvas.getContext('2d'),
-  game.board
-)
-
-const render = () => {
-  window.requestAnimationFrame(() => renderer.draw())
-}
-const getCursorPosition = (event: MouseEvent) => {
-  const rect = canvas.getBoundingClientRect()
-  return {
-      x: event.clientX - rect.left,
-      y: event.clientY - rect.top
-  }
+startButton.onclick = (e) => {
+  e.preventDefault()
+  startGame()
 }
 
-canvas.addEventListener("click", (event) => {
-  const cursorPosition = getCursorPosition(event)
+joinButton.onclick = (e) => {
+  e.preventDefault()
+  const gameId = gameIdInput.value
+  startGame(gameId)
+}
 
-  const boardImageSize = Math.min(canvas.width, canvas.height)
-  const slotGapSize = boardImageSize / game.board.size
 
-  const positionClicked = {
-    row: Math.floor(cursorPosition.y / slotGapSize),
-    column:  Math.floor(cursorPosition.x / slotGapSize)
-  };
 
-  game.placePeg(positionClicked)
-  render()
-})
 
-window.addEventListener("resize", () => {
-  setCanvasDimensions()
-  render()
-})
 
-document.addEventListener('DOMContentLoaded', () => {
-  setCanvasDimensions()
-  render()
-})
+
+
+
 
 
 
