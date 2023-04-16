@@ -4,5 +4,12 @@
   "background_color": "#17132a",
   "display": "standalone",
   "scope": "/",
-  "start_url": "/"
+  "start_url": "/",
+  "icons": [
+    {
+      "src": "public/icon.svg",
+      "purpose": "maskable any",
+      "sizes": "any"
+    }
+  ]
 }
