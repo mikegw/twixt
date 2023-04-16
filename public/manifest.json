@@ -1,0 +1,8 @@
+{
+  "name": "Twixt",
+  "theme_color": "orange",
+  "background_color": "#17132a",
+  "display": "standalone",
+  "scope": "/",
+  "start_url": "/"
+}
