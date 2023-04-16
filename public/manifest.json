@@ -3,8 +3,8 @@
   "theme_color": "orange",
   "background_color": "#17132a",
   "display": "standalone",
-  "scope": "/",
-  "start_url": "/",
+  "scope": "https://mikegw.github.io/twixt/",
+  "start_url": "https://mikegw.github.io/twixt/",
   "icons": [
     {
       "src": "public/icon.svg",
