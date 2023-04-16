@@ -2675,7 +2675,7 @@
   var isWindowsStoreApp = function() {
     return typeof Windows === "object" && typeof Windows.UI === "object";
   };
-  function errorForServerCode(code, query) {
+  function errorForServerCode(code, query2) {
     let reason = "Unknown Error";
     if (code === "too_big") {
       reason = "The data requested exceeds the maximum size that can be accessed with a single request.";
@@ -2684,7 +2684,7 @@
     } else if (code === "unavailable") {
       reason = "The service is unavailable";
     }
-    const error2 = new Error(code + " at " + query._path.toString() + ": " + reason);
+    const error2 = new Error(code + " at " + query2._path.toString() + ": " + reason);
     error2.code = code.toUpperCase();
     return error2;
   }
@@ -2887,8 +2887,8 @@
     }
     toURLString() {
       const protocol = this.secure ? "https://" : "http://";
-      const query = this.includeNamespaceInQueryParams ? `?ns=${this.namespace}` : "";
-      return `${protocol}${this.host}/${query}`;
+      const query2 = this.includeNamespaceInQueryParams ? `?ns=${this.namespace}` : "";
+      return `${protocol}${this.host}/${query2}`;
     }
   };
   function repoInfoNeedsQueryParam(repoInfo) {
@@ -4545,12 +4545,12 @@
         this.requestCBHash_[curReqNum] = onResponse;
       }
     }
-    get(query) {
+    get(query2) {
       this.initConnection_();
       const deferred = new Deferred();
       const request = {
-        p: query._path.toString(),
-        q: query._queryObject
+        p: query2._path.toString(),
+        q: query2._queryObject
       };
       const outstandingGet = {
         action: "g",
@@ -4572,20 +4572,20 @@
       }
       return deferred.promise;
     }
-    listen(query, currentHashFn, tag, onComplete) {
+    listen(query2, currentHashFn, tag, onComplete) {
       this.initConnection_();
-      const queryId = query._queryIdentifier;
-      const pathString = query._path.toString();
+      const queryId = query2._queryIdentifier;
+      const pathString = query2._path.toString();
       this.log_("Listen called for " + pathString + " " + queryId);
       if (!this.listens.has(pathString)) {
         this.listens.set(pathString, /* @__PURE__ */ new Map());
       }
-      assert(query._queryParams.isDefault() || !query._queryParams.loadsAllData(), "listen() called for non-default but complete query");
+      assert(query2._queryParams.isDefault() || !query2._queryParams.loadsAllData(), "listen() called for non-default but complete query");
       assert(!this.listens.get(pathString).has(queryId), `listen() called twice for same path/queryId.`);
       const listenSpec = {
         onComplete,
         hashFn: currentHashFn,
-        query,
+        query: query2,
         tag
       };
       this.listens.get(pathString).set(queryId, listenSpec);
@@ -4607,9 +4607,9 @@
       });
     }
     sendListen_(listenSpec) {
-      const query = listenSpec.query;
-      const pathString = query._path.toString();
-      const queryId = query._queryIdentifier;
+      const query2 = listenSpec.query;
+      const pathString = query2._path.toString();
+      const queryId = query2._queryIdentifier;
       this.log_("Listen on " + pathString + " for " + queryId);
       const req = {
         /*path*/
@@ -4617,7 +4617,7 @@
       };
       const action = "q";
       if (listenSpec.tag) {
-        req["q"] = query._queryObject;
+        req["q"] = query2._queryObject;
         req["t"] = listenSpec.tag;
       }
       req[
@@ -4633,7 +4633,7 @@
           /*status*/
           "s"
         ];
-        PersistentConnection.warnOnListenWarnings_(payload, query);
+        PersistentConnection.warnOnListenWarnings_(payload, query2);
         const currentListenSpec = this.listens.get(pathString) && this.listens.get(pathString).get(queryId);
         if (currentListenSpec === listenSpec) {
           this.log_("listen response", message);
@@ -4646,12 +4646,12 @@
         }
       });
     }
-    static warnOnListenWarnings_(payload, query) {
+    static warnOnListenWarnings_(payload, query2) {
       if (payload && typeof payload === "object" && contains(payload, "w")) {
         const warnings = safeGet(payload, "w");
         if (Array.isArray(warnings) && ~warnings.indexOf("no_index")) {
-          const indexSpec = '".indexOn": "' + query._queryParams.getIndex().toString() + '"';
-          const indexPath = query._path.toString();
+          const indexSpec = '".indexOn": "' + query2._queryParams.getIndex().toString() + '"';
+          const indexPath = query2._path.toString();
           warn(`Using an unspecified index. Your data will be downloaded and filtered on the client. Consider adding ${indexSpec} at ${indexPath} to your security rules for better performance.`);
         }
       }
@@ -4748,14 +4748,14 @@
     /**
      * @inheritDoc
      */
-    unlisten(query, tag) {
-      const pathString = query._path.toString();
-      const queryId = query._queryIdentifier;
+    unlisten(query2, tag) {
+      const pathString = query2._path.toString();
+      const queryId = query2._queryIdentifier;
       this.log_("Unlisten called for " + pathString + " " + queryId);
-      assert(query._queryParams.isDefault() || !query._queryParams.loadsAllData(), "unlisten() called for non-default but complete query");
+      assert(query2._queryParams.isDefault() || !query2._queryParams.loadsAllData(), "unlisten() called for non-default but complete query");
       const listen = this.removeListen_(pathString, queryId);
       if (listen && this.connected_) {
-        this.sendUnlisten_(pathString, queryId, query._queryObject, tag);
+        this.sendUnlisten_(pathString, queryId, query2._queryObject, tag);
       }
     }
     sendUnlisten_(pathString, queryId, queryObj, tag) {
@@ -5186,12 +5186,12 @@
         this.outstandingPuts_ = [];
       }
     }
-    onListenRevoked_(pathString, query) {
+    onListenRevoked_(pathString, query2) {
       let queryId;
-      if (!query) {
+      if (!query2) {
         queryId = "default";
       } else {
-        queryId = query.map((q) => ObjectToUniqueKey(q)).join("$");
+        queryId = query2.map((q) => ObjectToUniqueKey(q)).join("$");
       }
       const listen = this.removeListen_(pathString, queryId);
       if (listen && listen.onComplete) {
@@ -7372,22 +7372,22 @@
     reportStats(stats) {
       throw new Error("Method not implemented.");
     }
-    static getListenId_(query, tag) {
+    static getListenId_(query2, tag) {
       if (tag !== void 0) {
         return "tag$" + tag;
       } else {
-        assert(query._queryParams.isDefault(), "should have a tag if it's not a default query.");
-        return query._path.toString();
+        assert(query2._queryParams.isDefault(), "should have a tag if it's not a default query.");
+        return query2._path.toString();
       }
     }
     /** @inheritDoc */
-    listen(query, currentHashFn, tag, onComplete) {
-      const pathString = query._path.toString();
-      this.log_("Listen called for " + pathString + " " + query._queryIdentifier);
-      const listenId = ReadonlyRestClient.getListenId_(query, tag);
+    listen(query2, currentHashFn, tag, onComplete) {
+      const pathString = query2._path.toString();
+      this.log_("Listen called for " + pathString + " " + query2._queryIdentifier);
+      const listenId = ReadonlyRestClient.getListenId_(query2, tag);
       const thisListen = {};
       this.listens_[listenId] = thisListen;
-      const queryStringParameters = queryParamsToRestQueryStringParameters(query._queryParams);
+      const queryStringParameters = queryParamsToRestQueryStringParameters(query2._queryParams);
       this.restRequest_(pathString + ".json", queryStringParameters, (error2, result) => {
         let data = result;
         if (error2 === 404) {
@@ -7417,13 +7417,13 @@
       });
     }
     /** @inheritDoc */
-    unlisten(query, tag) {
-      const listenId = ReadonlyRestClient.getListenId_(query, tag);
+    unlisten(query2, tag) {
+      const listenId = ReadonlyRestClient.getListenId_(query2, tag);
       delete this.listens_[listenId];
     }
-    get(query) {
-      const queryStringParameters = queryParamsToRestQueryStringParameters(query._queryParams);
-      const pathString = query._path.toString();
+    get(query2) {
+      const queryStringParameters = queryParamsToRestQueryStringParameters(query2._queryParams);
+      const pathString = query2._path.toString();
       const deferred = new Deferred();
       this.restRequest_(pathString + ".json", queryStringParameters, (error2, result) => {
         let data = result;
@@ -8956,8 +8956,8 @@
       return events;
     }
   }
-  function syncPointGetView(syncPoint, query, writesCache, serverCache, serverCacheComplete) {
-    const queryId = query._queryIdentifier;
+  function syncPointGetView(syncPoint, query2, writesCache, serverCache, serverCacheComplete) {
+    const queryId = query2._queryIdentifier;
     const view = syncPoint.views.get(queryId);
     if (!view) {
       let eventCache = writeTreeRefCalcCompleteEventCache(writesCache, serverCacheComplete ? serverCache : null);
@@ -8972,20 +8972,20 @@
         eventCacheComplete = false;
       }
       const viewCache = newViewCache(new CacheNode(eventCache, eventCacheComplete, false), new CacheNode(serverCache, serverCacheComplete, false));
-      return new View(query, viewCache);
+      return new View(query2, viewCache);
     }
     return view;
   }
-  function syncPointAddEventRegistration(syncPoint, query, eventRegistration, writesCache, serverCache, serverCacheComplete) {
-    const view = syncPointGetView(syncPoint, query, writesCache, serverCache, serverCacheComplete);
-    if (!syncPoint.views.has(query._queryIdentifier)) {
-      syncPoint.views.set(query._queryIdentifier, view);
+  function syncPointAddEventRegistration(syncPoint, query2, eventRegistration, writesCache, serverCache, serverCacheComplete) {
+    const view = syncPointGetView(syncPoint, query2, writesCache, serverCache, serverCacheComplete);
+    if (!syncPoint.views.has(query2._queryIdentifier)) {
+      syncPoint.views.set(query2._queryIdentifier, view);
     }
     viewAddEventRegistration(view, eventRegistration);
     return viewGetInitialEvents(view, eventRegistration);
   }
-  function syncPointRemoveEventRegistration(syncPoint, query, eventRegistration, cancelError) {
-    const queryId = query._queryIdentifier;
+  function syncPointRemoveEventRegistration(syncPoint, query2, eventRegistration, cancelError) {
+    const queryId = query2._queryIdentifier;
     const removed = [];
     let cancelEvents = [];
     const hadCompleteView = syncPointHasCompleteView(syncPoint);
@@ -9012,7 +9012,7 @@
       }
     }
     if (hadCompleteView && !syncPointHasCompleteView(syncPoint)) {
-      removed.push(new (syncPointGetReferenceConstructor())(query._repo, query._path));
+      removed.push(new (syncPointGetReferenceConstructor())(query2._repo, query2._path));
     }
     return { removed, events: cancelEvents };
   }
@@ -9032,17 +9032,17 @@
     }
     return serverCache;
   }
-  function syncPointViewForQuery(syncPoint, query) {
-    const params = query._queryParams;
+  function syncPointViewForQuery(syncPoint, query2) {
+    const params = query2._queryParams;
     if (params.loadsAllData()) {
       return syncPointGetCompleteView(syncPoint);
     } else {
-      const queryId = query._queryIdentifier;
+      const queryId = query2._queryIdentifier;
       return syncPoint.views.get(queryId);
     }
   }
-  function syncPointViewExistsForQuery(syncPoint, query) {
-    return syncPointViewForQuery(syncPoint, query) != null;
+  function syncPointViewExistsForQuery(syncPoint, query2) {
+    return syncPointViewForQuery(syncPoint, query2) != null;
   }
   function syncPointHasCompleteView(syncPoint) {
     return syncPointGetCompleteView(syncPoint) != null;
@@ -9125,20 +9125,20 @@
       return [];
     }
   }
-  function syncTreeRemoveEventRegistration(syncTree, query, eventRegistration, cancelError, skipListenerDedup = false) {
-    const path = query._path;
+  function syncTreeRemoveEventRegistration(syncTree, query2, eventRegistration, cancelError, skipListenerDedup = false) {
+    const path = query2._path;
     const maybeSyncPoint = syncTree.syncPointTree_.get(path);
     let cancelEvents = [];
-    if (maybeSyncPoint && (query._queryIdentifier === "default" || syncPointViewExistsForQuery(maybeSyncPoint, query))) {
-      const removedAndEvents = syncPointRemoveEventRegistration(maybeSyncPoint, query, eventRegistration, cancelError);
+    if (maybeSyncPoint && (query2._queryIdentifier === "default" || syncPointViewExistsForQuery(maybeSyncPoint, query2))) {
+      const removedAndEvents = syncPointRemoveEventRegistration(maybeSyncPoint, query2, eventRegistration, cancelError);
       if (syncPointIsEmpty(maybeSyncPoint)) {
         syncTree.syncPointTree_ = syncTree.syncPointTree_.remove(path);
       }
       const removed = removedAndEvents.removed;
       cancelEvents = removedAndEvents.events;
       if (!skipListenerDedup) {
-        const removingDefault = -1 !== removed.findIndex((query2) => {
-          return query2._queryParams.loadsAllData();
+        const removingDefault = -1 !== removed.findIndex((query3) => {
+          return query3._queryParams.loadsAllData();
         });
         const covered = syncTree.syncPointTree_.findOnPath(path, (relativePath, parentSyncPoint) => syncPointHasCompleteView(parentSyncPoint));
         if (removingDefault && !covered) {
@@ -9155,7 +9155,7 @@
         if (!covered && removed.length > 0 && !cancelError) {
           if (removingDefault) {
             const defaultTag = null;
-            syncTree.listenProvider_.stopListening(syncTreeQueryForListening_(query), defaultTag);
+            syncTree.listenProvider_.stopListening(syncTreeQueryForListening_(query2), defaultTag);
           } else {
             removed.forEach((queryToRemove) => {
               const tagToRemove = syncTree.queryToTagMap.get(syncTreeMakeQueryKey_(queryToRemove));
@@ -9193,8 +9193,8 @@
       return [];
     }
   }
-  function syncTreeAddEventRegistration(syncTree, query, eventRegistration, skipSetupListener = false) {
-    const path = query._path;
+  function syncTreeAddEventRegistration(syncTree, query2, eventRegistration, skipSetupListener = false) {
+    const path = query2._path;
     let serverCache = null;
     let foundAncestorDefaultView = false;
     syncTree.syncPointTree_.foreachOnPath(path, (pathToSyncPoint, sp) => {
@@ -9224,19 +9224,19 @@
         }
       });
     }
-    const viewAlreadyExists = syncPointViewExistsForQuery(syncPoint, query);
-    if (!viewAlreadyExists && !query._queryParams.loadsAllData()) {
-      const queryKey = syncTreeMakeQueryKey_(query);
+    const viewAlreadyExists = syncPointViewExistsForQuery(syncPoint, query2);
+    if (!viewAlreadyExists && !query2._queryParams.loadsAllData()) {
+      const queryKey = syncTreeMakeQueryKey_(query2);
       assert(!syncTree.queryToTagMap.has(queryKey), "View does not exist, but we have a tag");
       const tag = syncTreeGetNextQueryTag_();
       syncTree.queryToTagMap.set(queryKey, tag);
       syncTree.tagToQueryMap.set(tag, queryKey);
     }
     const writesCache = writeTreeChildWrites(syncTree.pendingWriteTree_, path);
-    let events = syncPointAddEventRegistration(syncPoint, query, eventRegistration, writesCache, serverCache, serverCacheComplete);
+    let events = syncPointAddEventRegistration(syncPoint, query2, eventRegistration, writesCache, serverCache, serverCacheComplete);
     if (!viewAlreadyExists && !foundAncestorDefaultView && !skipSetupListener) {
-      const view = syncPointViewForQuery(syncPoint, query);
-      events = events.concat(syncTreeSetupListener_(syncTree, query, view));
+      const view = syncPointViewForQuery(syncPoint, query2);
+      events = events.concat(syncTreeSetupListener_(syncTree, query2, view));
     }
     return events;
   }
@@ -9304,8 +9304,8 @@
     return events;
   }
   function syncTreeCreateListenerForView_(syncTree, view) {
-    const query = view.query;
-    const tag = syncTreeTagForQuery(syncTree, query);
+    const query2 = view.query;
+    const tag = syncTreeTagForQuery(syncTree, query2);
     return {
       hashFn: () => {
         const cache = viewGetServerCache(view) || ChildrenNode.EMPTY_NODE;
@@ -9314,15 +9314,15 @@
       onComplete: (status) => {
         if (status === "ok") {
           if (tag) {
-            return syncTreeApplyTaggedListenComplete(syncTree, query._path, tag);
+            return syncTreeApplyTaggedListenComplete(syncTree, query2._path, tag);
           } else {
-            return syncTreeApplyListenComplete(syncTree, query._path);
+            return syncTreeApplyListenComplete(syncTree, query2._path);
           }
         } else {
-          const error2 = errorForServerCode(status, query);
+          const error2 = errorForServerCode(status, query2);
           return syncTreeRemoveEventRegistration(
             syncTree,
-            query,
+            query2,
             /*eventRegistration*/
             null,
             error2
@@ -9331,12 +9331,12 @@
       }
     };
   }
-  function syncTreeTagForQuery(syncTree, query) {
-    const queryKey = syncTreeMakeQueryKey_(query);
+  function syncTreeTagForQuery(syncTree, query2) {
+    const queryKey = syncTreeMakeQueryKey_(query2);
     return syncTree.queryToTagMap.get(queryKey);
   }
-  function syncTreeMakeQueryKey_(query) {
-    return query._path.toString() + "$" + query._queryIdentifier;
+  function syncTreeMakeQueryKey_(query2) {
+    return query2._path.toString() + "$" + query2._queryIdentifier;
   }
   function syncTreeQueryKeyForTag_(syncTree, tag) {
     return syncTree.tagToQueryMap.get(tag);
@@ -9372,11 +9372,11 @@
       }
     });
   }
-  function syncTreeQueryForListening_(query) {
-    if (query._queryParams.loadsAllData() && !query._queryParams.isDefault()) {
-      return new (syncTreeGetReferenceConstructor())(query._repo, query._path);
+  function syncTreeQueryForListening_(query2) {
+    if (query2._queryParams.loadsAllData() && !query2._queryParams.isDefault()) {
+      return new (syncTreeGetReferenceConstructor())(query2._repo, query2._path);
     } else {
-      return query;
+      return query2;
     }
   }
   function syncTreeRemoveTags_(syncTree, queries) {
@@ -9393,11 +9393,11 @@
   function syncTreeGetNextQueryTag_() {
     return syncTreeNextQueryTag_++;
   }
-  function syncTreeSetupListener_(syncTree, query, view) {
-    const path = query._path;
-    const tag = syncTreeTagForQuery(syncTree, query);
+  function syncTreeSetupListener_(syncTree, query2, view) {
+    const path = query2._path;
+    const tag = syncTreeTagForQuery(syncTree, query2);
     const listener = syncTreeCreateListenerForView_(syncTree, view);
-    const events = syncTree.listenProvider_.startListening(syncTreeQueryForListening_(query), tag, listener.hashFn, listener.onComplete);
+    const events = syncTree.listenProvider_.startListening(syncTreeQueryForListening_(query2), tag, listener.hashFn, listener.onComplete);
     const subtree = syncTree.syncPointTree_.subtree(path);
     if (tag) {
       assert(!syncPointHasCompleteView(subtree.value), "If we're adding a query, it shouldn't be shadowed");
@@ -9824,11 +9824,11 @@
     repo.statsReporter_ = statsManagerGetOrCreateReporter(repo.repoInfo_, () => new StatsReporter(repo.stats_, repo.server_));
     repo.infoData_ = new SnapshotHolder();
     repo.infoSyncTree_ = new SyncTree({
-      startListening: (query, tag, currentHashFn, onComplete) => {
+      startListening: (query2, tag, currentHashFn, onComplete) => {
         let infoEvents = [];
-        const node = repo.infoData_.getNode(query._path);
+        const node = repo.infoData_.getNode(query2._path);
         if (!node.isEmpty()) {
-          infoEvents = syncTreeApplyServerOverwrite(repo.infoSyncTree_, query._path, node);
+          infoEvents = syncTreeApplyServerOverwrite(repo.infoSyncTree_, query2._path, node);
           setTimeout(() => {
             onComplete("ok");
           }, 0);
@@ -9840,15 +9840,15 @@
     });
     repoUpdateInfo(repo, "connected", false);
     repo.serverSyncTree_ = new SyncTree({
-      startListening: (query, tag, currentHashFn, onComplete) => {
-        repo.server_.listen(query, currentHashFn, tag, (status, data) => {
+      startListening: (query2, tag, currentHashFn, onComplete) => {
+        repo.server_.listen(query2, currentHashFn, tag, (status, data) => {
           const events = onComplete(status, data);
-          eventQueueRaiseEventsForChangedPath(repo.eventQueue_, query._path, events);
+          eventQueueRaiseEventsForChangedPath(repo.eventQueue_, query2._path, events);
         });
         return [];
       },
-      stopListening: (query, tag) => {
-        repo.server_.unlisten(query, tag);
+      stopListening: (query2, tag) => {
+        repo.server_.unlisten(query2, tag);
       }
     });
   }
@@ -9955,23 +9955,23 @@
     repo.onDisconnect_ = newSparseSnapshotTree();
     eventQueueRaiseEventsForChangedPath(repo.eventQueue_, newEmptyPath(), events);
   }
-  function repoAddEventCallbackForQuery(repo, query, eventRegistration) {
+  function repoAddEventCallbackForQuery(repo, query2, eventRegistration) {
     let events;
-    if (pathGetFront(query._path) === ".info") {
-      events = syncTreeAddEventRegistration(repo.infoSyncTree_, query, eventRegistration);
+    if (pathGetFront(query2._path) === ".info") {
+      events = syncTreeAddEventRegistration(repo.infoSyncTree_, query2, eventRegistration);
     } else {
-      events = syncTreeAddEventRegistration(repo.serverSyncTree_, query, eventRegistration);
+      events = syncTreeAddEventRegistration(repo.serverSyncTree_, query2, eventRegistration);
     }
-    eventQueueRaiseEventsAtPath(repo.eventQueue_, query._path, events);
+    eventQueueRaiseEventsAtPath(repo.eventQueue_, query2._path, events);
   }
-  function repoRemoveEventCallbackForQuery(repo, query, eventRegistration) {
+  function repoRemoveEventCallbackForQuery(repo, query2, eventRegistration) {
     let events;
-    if (pathGetFront(query._path) === ".info") {
-      events = syncTreeRemoveEventRegistration(repo.infoSyncTree_, query, eventRegistration);
+    if (pathGetFront(query2._path) === ".info") {
+      events = syncTreeRemoveEventRegistration(repo.infoSyncTree_, query2, eventRegistration);
     } else {
-      events = syncTreeRemoveEventRegistration(repo.serverSyncTree_, query, eventRegistration);
+      events = syncTreeRemoveEventRegistration(repo.serverSyncTree_, query2, eventRegistration);
     }
-    eventQueueRaiseEventsAtPath(repo.eventQueue_, query._path, events);
+    eventQueueRaiseEventsAtPath(repo.eventQueue_, query2._path, events);
   }
   function repoInterrupt(repo) {
     if (repo.persistentConnection_) {
@@ -10749,9 +10749,9 @@
     respondsTo(eventType) {
       return eventType === "value";
     }
-    createEvent(change, query) {
-      const index = query._queryParams.getIndex();
-      return new DataEvent("value", this, new DataSnapshot(change.snapshotNode, new ReferenceImpl(query._repo, query._path), index));
+    createEvent(change, query2) {
+      const index = query2._queryParams.getIndex();
+      return new DataEvent("value", this, new DataSnapshot(change.snapshotNode, new ReferenceImpl(query2._repo, query2._path), index));
     }
     getEventRunner(eventData) {
       if (eventData.getEventType() === "cancel") {
@@ -10797,10 +10797,10 @@
         return null;
       }
     }
-    createEvent(change, query) {
+    createEvent(change, query2) {
       assert(change.childName != null, "Child events should have a childName.");
-      const childRef = child(new ReferenceImpl(query._repo, query._path), change.childName);
-      const index = query._queryParams.getIndex();
+      const childRef = child(new ReferenceImpl(query2._repo, query2._path), change.childName);
+      const index = query2._queryParams.getIndex();
       return new DataEvent(change.type, this, new DataSnapshot(change.snapshotNode, childRef, index), change.prevName);
     }
     getEventRunner(eventData) {
@@ -10820,7 +10820,7 @@
       return !!this.callbackContext;
     }
   };
-  function addEventListener(query, eventType, callback, cancelCallbackOrListenOptions, options) {
+  function addEventListener(query2, eventType, callback, cancelCallbackOrListenOptions, options) {
     let cancelCallback;
     if (typeof cancelCallbackOrListenOptions === "object") {
       cancelCallback = void 0;
@@ -10832,7 +10832,7 @@
     if (options && options.onlyOnce) {
       const userCallback = callback;
       const onceCallback = (dataSnapshot, previousChildName) => {
-        repoRemoveEventCallbackForQuery(query._repo, query, container);
+        repoRemoveEventCallbackForQuery(query2._repo, query2, container);
         userCallback(dataSnapshot, previousChildName);
       };
       onceCallback.userCallback = callback.userCallback;
@@ -10841,11 +10841,11 @@
     }
     const callbackContext = new CallbackContext(callback, cancelCallback || void 0);
     const container = eventType === "value" ? new ValueEventRegistration(callbackContext) : new ChildEventRegistration(eventType, callbackContext);
-    repoAddEventCallbackForQuery(query._repo, query, container);
-    return () => repoRemoveEventCallbackForQuery(query._repo, query, container);
+    repoAddEventCallbackForQuery(query2._repo, query2, container);
+    return () => repoRemoveEventCallbackForQuery(query2._repo, query2, container);
   }
-  function onChildAdded(query, callback, cancelCallbackOrListenOptions, options) {
-    return addEventListener(query, "child_added", callback, cancelCallbackOrListenOptions, options);
+  function onChildAdded(query2, callback, cancelCallbackOrListenOptions, options) {
+    return addEventListener(query2, "child_added", callback, cancelCallbackOrListenOptions, options);
   }
   syncPointSetReferenceConstructor(ReferenceImpl);
   syncTreeSetReferenceConstructor(ReferenceImpl);
@@ -11085,6 +11085,12 @@
     const gameId = gameIdInput.value;
     startGame(gameId);
   };
+  var query = new URLSearchParams(window.location.search);
+  if (query.has("gameId")) {
+    startGame(query.get("gameId"));
+  } else {
+    gameStart.style.display = "flex";
+  }
 })();
 /*! Bundled license information:
 

@@ -10,7 +10,6 @@ const gameIdInput = document.getElementById('game-id-input') as HTMLInputElement
 const joinButton = document.getElementById('join-button')
 const startButton = document.getElementById('start-button');
 
-
 const startGame = (id: string = null) => {
   const game = new Game()
   const gameData = new GameData(id)
@@ -36,7 +35,12 @@ joinButton.onclick = (e) => {
   startGame(gameId)
 }
 
-
+const query = new URLSearchParams(window.location.search);
+if (query.has('gameId')) {
+  startGame(query.get('gameId'))
+} else {
+  gameStart.style.display = 'flex';
+}
 
 
 
