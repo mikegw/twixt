@@ -1,32 +1,98 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <link rel="icon" href="public/icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="public/styles.css" />
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="The classic 2-player game" />
+
+    <link rel="icon" href="public/icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="public/styles.css" />
     <link rel="manifest" href="public/manifest.json">
+
+    <script src="https://kit.fontawesome.com/5d6b09a2c5.js" crossorigin="anonymous"></script>
     <title>Twixt</title>
   </head>
 
   <body>
-    <canvas id="game-canvas" width=600 height=600></canvas>
+    <i data-fa-symbol="play" class="fa-solid fa-play fa-fw"></i>
+    <i data-fa-symbol="fa-add" class="fa-solid fa-circle-plus fa-fw"></i>
+    <i data-fa-symbol="fa-question" class="fa-solid fa-circle-question fa-fw"></i>
+    <i data-fa-symbol="fa-circle" class="fa-solid fa-circle fa-fw"></i>
 
-    <nav id="game-start" style="display: none">
-      <div>
-        <input type="text" id="game-id-input" placeholder="Enter Game ID">
-        <button id="join-button">Join</button>
-      </div>
-      <button id="start-button">New Game</button>
-    </nav>
+    <svg style="display: none">
+      <symbol id="add">
+        <use class="mini-circle" xlink:href="#fa-circle"></use>
+        <use xlink:href="#fa-add"></use>
+      </symbol>
 
-    <nav id="game-id-info" style="display: none">
-      <span id="game-id-span"></span>
+      <symbol id="question">
+        <use xlink:href="#fa-circle"></use>
+        <use xlink:href="#fa-question"></use>
+      </symbol>
+    </svg>
 
-      <button id="game-id-copy">COPY ID</button>
-    </nav>
+    <main>
+      <article id="get-started" class="hidden">
+        <label>
+          <input type="text" name="username">
+          <span>User name</span>
+        </label>
 
-    <script src="public/index.js"></script>
+        <button class="nav-button" id="get-started-button">Get Started</button>
+      </article>
+
+      <article id="main-menu" class="hidden">
+        <h1>Main Menu</h1>
+        <nav>
+          <button class="nav-button" id="play">Play</button>
+          <button class="nav-button" id="learn">Learn</button>
+          <button class="nav-button" id="settings">Settings</button>
+        </nav>
+      </article>
+
+      <article id="join-or-start-game" class="hidden">
+        <h1>Join or Start Game</h1>
+        <nav>
+          <button class="nav-button" id="add-friend">Add Friend</button>
+          <button class="nav-button" id="join-random">Random Player</button>
+        </nav>
+
+        <ul id="users"></ul>
+      </article>
+
+      <article id="play-game" class="hidden">
+        <canvas id="game-canvas" width=600 height=600></canvas>
+        <section>
+          <p>You are <span id="player-color"></span></p>
+          <p><span id="current-player"></span> to move</p>
+        </section>
+      </article>
+    </main>
   </body>
+
+  <template id="player-row">
+    <li class="player">
+      <i class="fa-solid fa-user"></i>
+      <span class="friend-name"></span>
+      <button class="icon-button invite-friend">
+        <svg class="dual-icon" viewBox="0 0 100 100">
+          <use xlink:href="#play"></use>
+          <use xlink:href="#add"></use>
+        </svg>
+      </button>
+
+      <button class="icon-button invite-pending">
+        <svg class="dual-icon" viewBox="0 0 100 100">
+          <use xlink:href="#play"></use>
+          <use xlink:href="#question"></use>
+        </svg>
+      </button>
+
+      <button class="icon-button play-game">
+        <i class="fa-solid fa-play"></i>
+      </button>
+    </li>
+  </template>
+
+  <script src="public/index.js"></script>
 </html>

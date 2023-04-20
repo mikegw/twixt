@@ -1,82 +1,73 @@
-import { GameUI } from "./gameUI";
-import { Game } from "./game";
-import { GameData } from "./gameData";
+import { navigateTo, Page, PageName, setupPages } from "./page";
+import { User } from "./user";
+import { GetStarted } from "./pages/getStarted";
+import { MainMenu } from "./pages/mainMenu";
+import { JoinOrStart } from "./pages/joinOrStart";
+import { PlayGame } from "./pages/playGame";
+import * as firebase from "./dataStore/firebase";
+import { FirebaseOptions } from "firebase/app";
+import { dataStore } from "./dataStore/firebase";
+import { DataStore } from "./dataStore";
 
-const gameIdSpan = document.getElementById('game-id-span')
-const gameIdCopyButton = document.getElementById('game-id-copy')
-const gameIdInfo = document.getElementById('game-id-info')
-const gameStart = document.getElementById('game-start')
-const gameIdInput = document.getElementById('game-id-input') as HTMLInputElement
-const joinButton = document.getElementById('join-button')
-const startButton = document.getElementById('start-button');
+export type Environment = 'local' | 'test' | 'production'
 
-const startGame = (id: string = null) => {
-  const game = new Game()
-  const gameData = new GameData(id)
-  const gameEngine = new GameUI(game, gameData)
+export type Config = { firebaseConfig: FirebaseOptions, environment: Environment }
 
-  gameIdSpan.innerText = gameData.gameId
-  gameIdCopyButton.onclick = () => navigator.clipboard.writeText(gameData.gameId)
+// @ts-ignore
+const config: Config = CONFIG
 
-  gameStart.style.display = 'none'
-  gameIdInfo.style.display = 'flex'
 
-  gameEngine.start()
+export type UIElement = { id: string }
+
+export const display = (element: UIElement) => {
+  document.getElementById(element.id).classList.remove('hidden')
 }
 
-startButton.onclick = (e) => {
-  e.preventDefault()
-  startGame()
+export const hide = (element: UIElement) => {
+  document.getElementById(element.id).classList.add('hidden')
 }
 
-joinButton.onclick = (e) => {
-  e.preventDefault()
-  const gameId = gameIdInput.value
-  startGame(gameId)
+const pages: Record<PageName, Page> = {
+  GetStarted: {
+    id: 'get-started',
+    navigation: [
+      { id: 'get-started-button', nextPage: 'MainMenu' }
+    ],
+    setup: GetStarted
+  },
+  MainMenu:  {
+    id: 'main-menu',
+    navigation: [
+      { id: 'play', nextPage: 'JoinOrStart' }
+    ],
+    setup: MainMenu
+  },
+  JoinOrStart: {
+    id: 'join-or-start-game',
+    navigation: [],
+    setup: JoinOrStart
+  },
+  PlayGame: {
+    id: 'play-game',
+    navigation: [],
+    setup: PlayGame
+  }
 }
 
-const query = new URLSearchParams(window.location.search);
-if (query.has('gameId')) {
-  startGame(query.get('gameId'))
-} else {
-  gameStart.style.display = 'flex';
+export type GlobalContextType = {
+  currentUser: User
+  pages: Record<PageName, Page>,
+  gameId: string
+  dataStore: DataStore
 }
 
+export const GlobalContext: GlobalContextType = {
+  pages,
+  currentUser: null,
+  gameId: null,
+  dataStore: dataStore(config)
+}
 
+setupPages()
 
-
-
-
-
-
-
-/*--- TESTING ---*/
-//
-// (<any>window).game = game
-//
-// function shuffle(o: any[]){ //v1.0
-//   for(let j, x, i = o.length; i; j = Math.floor(Math.random() * i), x = o[--i], o[i] = o[j], o[j] = x);
-//   return o;
-// }
-//
-// let shuffled: any[] = [];
-//
-// for (let i = 0; i < game.board.size; i++) {
-//   for (let j = 0; j < game.board.size; j++) {
-//     shuffled.push([i, j]);
-//   }
-// }
-//
-// shuffle(shuffled);
-// const delayMS = 50
-// for (let i = 0; i < shuffled.length*0.8; i++) {
-//   setTimeout(
-//     () =>  {
-//         game.placePeg({row: shuffled[i][0], column: shuffled[i][1]})
-//         render()
-//     },
-//     delayMS*i
-//   )
-// }
-//
-// render()
+navigateTo(pages.GetStarted)

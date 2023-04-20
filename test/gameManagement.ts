@@ -1,7 +1,8 @@
 import { expect } from "chai";
-import { Game } from "../../src/game";
+import { Game } from "../src/twixt/game";
 
-import { Color } from "../../src/color";
+
+import { Color } from "../src/twixt/player";
 
 describe('Game Management', () => {
   it('can start a new game', () => {

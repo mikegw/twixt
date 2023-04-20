@@ -1,5 +1,427 @@
 (() => {
-  // src/gameUI/renderer.ts
+  // <define:CONFIG>
+  var define_CONFIG_default = { firebaseConfig: { apiKey: "AIzaSyBiVEerDSeDFrUaTn8nbY58WAuPr6XtbcQ", authDomain: "mw-twixt.firebaseapp.com", databaseURL: "https://mw-twixt-default-rtdb.firebaseio.com", projectId: "mw-twixt", storageBucket: "mw-twixt.appspot.com", messagingSenderId: "1048357586138", appId: "1:1048357586138:web:652cab4962c73e83e5d1e3", measurementId: "G-2DV7T5RWJB" }, environment: "local" };
+
+  // src/page.ts
+  var isNavigationButton = (button) => "nextPage" in button;
+  var pageNames = ["GetStarted", "MainMenu", "JoinOrStart", "PlayGame"];
+  var activePage;
+  var navigateTo = (page) => {
+    if (activePage)
+      hide(activePage);
+    activePage = page;
+    page.setup();
+    display(page);
+  };
+  var addNavigation = (button) => {
+    const nextPage = GlobalContext.pages[button.nextPage];
+    const buttonHTMLElement = document.getElementById(button.id);
+    buttonHTMLElement.addEventListener("click", (e) => {
+      e.preventDefault();
+      navigateTo(nextPage);
+    });
+  };
+  var setupPages = () => {
+    for (let pageName of pageNames) {
+      const page = GlobalContext.pages[pageName];
+      const navigationButtons = page.navigation.filter(isNavigationButton);
+      for (let button of navigationButtons)
+        addNavigation(button);
+    }
+  };
+
+  // src/twixt/gameData.ts
+  function isPosition(data) {
+    return "row" in data && "column" in data;
+  }
+  var GameData = class {
+    get gamePath() {
+      return `games/${this.id}`;
+    }
+    get movesPath() {
+      return this.gamePath + "/moves";
+    }
+    get firstPlayerPath() {
+      return this.gamePath + "/firstPlayer";
+    }
+    constructor(dataStore2, id) {
+      this.dataStore = dataStore2;
+      this.id = id || GameData.generateGameId();
+    }
+    subscribe(callback) {
+      this.dataStore.onChildAdded(this.movesPath, (data) => {
+        if (isPosition(data))
+          callback(data);
+      });
+    }
+    write(position) {
+      this.dataStore.append(this.movesPath, position);
+    }
+    setFirstPlayer(name4) {
+      this.dataStore.write(this.firstPlayerPath, name4);
+    }
+    getFirstPlayer(callback) {
+      this.dataStore.read(this.firstPlayerPath, callback);
+    }
+    static generateGameId() {
+      const firstPart = Math.random() * 46656 | 0;
+      const secondPart = Math.random() * 46656 | 0;
+      const firstPartString = ("000" + firstPart.toString(36)).slice(-3);
+      const secondPartString = ("000" + secondPart.toString(36)).slice(-3);
+      return firstPartString + secondPartString;
+    }
+  };
+
+  // src/user.ts
+  var User = class {
+    constructor(userData, dataStore2) {
+      this.name = userData.name;
+      this.dataStore = dataStore2;
+    }
+    static userPath(name4) {
+      return `users/${name4}`;
+    }
+    static invitesPath(user) {
+      return this.userPath(user) + `/invites`;
+    }
+    static invitePath(user, key) {
+      return this.invitesPath(user) + `/${key}`;
+    }
+    static gamesInProgressPath(user) {
+      return this.userPath(user) + `/gamesInProgress`;
+    }
+    static gameInProgressPath(user, key) {
+      return this.gamesInProgressPath(user) + `/${key}`;
+    }
+    get userPath() {
+      return User.userPath(this.name);
+    }
+    invite(user) {
+      this.dataStore.append(User.invitesPath(user.name), { name: this.name });
+    }
+    onInviteReceived(callback) {
+      this.dataStore.onChildAdded(User.invitesPath(this.name), callback);
+    }
+    acceptInvite(invite, key) {
+      this.dataStore.destroy(User.invitePath(this.name, key));
+      const game = new GameData(this.dataStore);
+      game.setFirstPlayer(Math.random() > 0.5 ? this.name : invite.name);
+      this.dataStore.append(User.gamesInProgressPath(this.name), { gameId: game.id, opponent: invite.name });
+      this.dataStore.append(User.gamesInProgressPath(invite.name), { gameId: game.id, opponent: this.name });
+    }
+    onGameInProgress(callback) {
+      this.dataStore.onChildAdded(User.gamesInProgressPath(this.name), callback);
+    }
+    completeGame(key) {
+      this.dataStore.destroy(User.gameInProgressPath(this.name, key));
+    }
+  };
+
+  // src/usernameList.ts
+  var UsernameList = class {
+    constructor(dataStore2) {
+      this.dataStore = dataStore2;
+    }
+    static usernamesPath() {
+      return `userNames`;
+    }
+    static usernamePath(name4) {
+      return UsernameList.usernamesPath() + `/${name4}`;
+    }
+    addUser(name4) {
+      this.dataStore.write(UsernameList.usernamePath(name4), true);
+    }
+    onUserAdded(callback) {
+      this.dataStore.onChildAdded(
+        UsernameList.usernamesPath(),
+        (_, name4) => callback(name4)
+      );
+    }
+    onUserRemoved(callback) {
+      this.dataStore.onChildRemoved(UsernameList.usernamesPath(), callback);
+    }
+  };
+
+  // src/pages/getStarted.ts
+  function GetStarted() {
+    const getStartedButton = document.querySelector("#get-started-button");
+    const usernameInput = document.querySelector('input[name="username"]');
+    getStartedButton.addEventListener("click", (e) => {
+      e.preventDefault();
+      const username = usernameInput.value;
+      GlobalContext.currentUser = new User({ name: username }, GlobalContext.dataStore);
+      const usernames = new UsernameList(GlobalContext.dataStore);
+      usernames.addUser(username);
+    });
+  }
+
+  // src/pages/mainMenu.ts
+  function MainMenu() {
+  }
+
+  // src/components/userRow.ts
+  var playerRowTemplate = document.querySelector("#player-row");
+  var UserRow = class {
+    constructor(options) {
+      this.element = playerRowTemplate.content.firstElementChild.cloneNode(true);
+      this.element.setAttribute("player-name", options.name);
+      this.element.id = `player-${options.name}`;
+      this.element.querySelector(".friend-name").textContent = options.name;
+      this.inviteButton = this.element.querySelector(".invite-friend");
+      this.invitePendingButton = this.element.querySelector(".invite-pending");
+      this.playGameButton = this.element.querySelector(".play-game");
+      this.inviteButton.addEventListener("click", (e) => {
+        e.preventDefault();
+        options.onInvite();
+        this.invitePendingButton.disabled = true;
+        this.element.setAttribute("invite", "pending");
+      });
+      this.invitePendingButton.addEventListener("click", (e) => {
+        e.preventDefault();
+        const inviteKey = this.element.getAttribute("invite-key");
+        options.onAcceptInvite(inviteKey);
+        this.element.removeAttribute("invite-key");
+      });
+      this.playGameButton.addEventListener("click", (e) => {
+        e.preventDefault();
+        GlobalContext.gameId = this.element.attributes.getNamedItem("game-id").value;
+        navigateTo(GlobalContext.pages.PlayGame);
+      });
+    }
+  };
+
+  // src/components/userList.ts
+  var UserList = class {
+    constructor(element, usernames) {
+      this.addEventListeners = () => {
+        GlobalContext.currentUser.onInviteReceived(({ name: name4 }, key) => {
+          const userLi = document.getElementById(`player-${name4}`);
+          userLi.setAttribute("invite", "pending");
+          userLi.setAttribute("invite-key", key);
+        });
+        GlobalContext.currentUser.onGameInProgress(({ gameId, opponent }, key) => {
+          const userLi = document.getElementById(`player-${opponent}`);
+          userLi.setAttribute("invite", "accepted");
+          userLi.setAttribute("game-id", gameId);
+          userLi.setAttribute("game-in-progress-key", key);
+        });
+      };
+      this.usernames = usernames;
+      this.element = element;
+      this.populate();
+      this.addEventListeners();
+    }
+    populate() {
+      this.usernames.onUserAdded((name4) => {
+        if (GlobalContext.currentUser.name == name4)
+          return;
+        const row = this.newRowElement(name4);
+        this.element.appendChild(row.element);
+      });
+      this.usernames.onUserRemoved((name4) => {
+        const userLi = document.getElementById(`player-${name4}`);
+        userLi.remove();
+      });
+    }
+    newRowElement(name4) {
+      return new UserRow({
+        name: name4,
+        onInvite: () => GlobalContext.currentUser.invite({ name: name4 }),
+        onAcceptInvite: (key) => {
+          GlobalContext.currentUser.acceptInvite({ name: name4 }, key);
+        }
+      });
+    }
+  };
+
+  // src/pages/joinOrStart.ts
+  function JoinOrStart() {
+    const userListElement = document.getElementById("users");
+    const usernames = new UsernameList(GlobalContext.dataStore);
+    new UserList(userListElement, usernames);
+  }
+
+  // src/twixt/board/vector.ts
+  var addVectors = (v1, v2) => {
+    return {
+      row: v1.row + v2.row,
+      column: v1.column + v2.column
+    };
+  };
+  var sameVectors = (vector1, vector2) => {
+    return vector1.row == vector2.row && vector1.column == vector2.column;
+  };
+  function intersects([a, b], [c, d]) {
+    const determinant = (b.row - a.row) * (d.column - c.column) - (d.row - c.row) * (b.column - a.column);
+    if (determinant == 0)
+      return false;
+    const lambda = ((d.column - c.column) * (d.row - a.row) + (c.row - d.row) * (d.column - a.column)) / determinant;
+    const gamma = ((a.column - b.column) * (d.row - a.row) + (b.row - a.row) * (d.column - a.column)) / determinant;
+    return 0 < lambda && lambda < 1 && (0 < gamma && gamma < 1);
+  }
+
+  // src/twixt/board/slot.ts
+  var Slot = class {
+    constructor(position) {
+      this.color = null;
+      this.position = position;
+    }
+    get isOccupied() {
+      return this.color !== null;
+    }
+  };
+
+  // src/twixt/board/connection.ts
+  var Connection = class {
+    constructor(color, slots) {
+      this.overlaps = (otherConnection) => {
+        const firstPegConnectedToOtherConnection = otherConnection.positions.some((position) => sameVectors(this.positions[0], position));
+        const secondPegConnectedToOtherConnection = otherConnection.positions.some((position) => sameVectors(this.positions[1], position));
+        if (firstPegConnectedToOtherConnection && secondPegConnectedToOtherConnection)
+          return true;
+        if (firstPegConnectedToOtherConnection || secondPegConnectedToOtherConnection)
+          return false;
+        return intersects(this.positions, otherConnection.positions);
+      };
+      this.color = color;
+      this.slots = slots;
+    }
+    get positions() {
+      return [this.slots[0].position, this.slots[1].position];
+    }
+  };
+
+  // src/twixt/player.ts
+  var Player = class {
+    constructor(color) {
+      this.color = color;
+    }
+  };
+
+  // src/twixt/board.ts
+  var BOARD_SIZE = 18;
+  var _Board = class {
+    constructor(size = BOARD_SIZE) {
+      this.slots = [];
+      this.connections = [];
+      this.slotAt = (position) => {
+        return this.slots.find((slot) => sameVectors(slot.position, position));
+      };
+      this.isValidPosition = (position) => {
+        return this.isOnBoard(position) && !this.corners.some((corner) => sameVectors(position, corner));
+      };
+      this.isValidConnection = (connection) => {
+        return !this.connections.some((other) => connection.overlaps(other));
+      };
+      this.isOnBoard = (position) => {
+        return position.row >= 0 && position.row < this.size && position.column >= 0 && position.column < this.size;
+      };
+      this.size = size;
+      this.populateSlots(size);
+    }
+    place(color, position) {
+      if (!this.isValidPosition(position))
+        return null;
+      if (this.onOpponentBorder(position, color))
+        return null;
+      const slot = this.slotAt(position);
+      if (slot.isOccupied)
+        return null;
+      slot.color = color;
+      return slot;
+    }
+    connect(color, slots) {
+      const connection = new Connection(color, slots);
+      if (!this.isValidConnection(connection))
+        return null;
+      this.connections.push(connection);
+      return connection;
+    }
+    neighboringSlots(position) {
+      return this.neighboringPositions(position).map(this.slotAt).filter((slot) => slot.isOccupied);
+    }
+    populateSlots(size) {
+      for (let row = 0; row < size; row++) {
+        for (let column = 0; column < size; column++) {
+          const position = { row, column };
+          if (this.corners.some((corner) => sameVectors(position, corner)))
+            continue;
+          this.slots.push(new Slot(position));
+        }
+      }
+    }
+    get corners() {
+      return [
+        { row: 0, column: 0 },
+        { row: 0, column: this.size - 1 },
+        { row: this.size - 1, column: 0 },
+        { row: this.size - 1, column: this.size - 1 }
+      ];
+    }
+    onOpponentBorder(position, color) {
+      return color == "RED" /* Red */ && (position.column == 0 || position.column == this.size - 1) || color == "BLUE" /* Blue */ && (position.row == 0 || position.row == this.size - 1);
+    }
+    neighboringPositions(position) {
+      const potentialNeighbors = _Board.neighborDiffs.map((diff) => addVectors(position, diff));
+      return potentialNeighbors.filter(this.isValidPosition);
+    }
+  };
+  var Board = _Board;
+  Board.neighborDiffs = [
+    { row: 1, column: 2 },
+    { row: 2, column: 1 },
+    { row: 1, column: -2 },
+    { row: -2, column: 1 },
+    { row: -1, column: 2 },
+    { row: 2, column: -1 },
+    { row: -1, column: -2 },
+    { row: -2, column: -1 }
+  ];
+
+  // src/twixt/game.ts
+  var Game = class {
+    constructor() {
+      this.players = [new Player("RED" /* Red */), new Player("BLUE" /* Blue */)];
+      this.board = new Board();
+      this.currentPlayerIndex = 0;
+    }
+    get currentPlayer() {
+      return this.players[this.currentPlayerIndex];
+    }
+    placePeg(position) {
+      const slot = this.board.place(this.currentPlayer.color, position);
+      if (!slot)
+        return { slot, connectionsAdded: [] };
+      const connections = this.addConnections(position, slot);
+      this.endTurn();
+      return { slot, connectionsAdded: connections };
+    }
+    addConnections(position, slot) {
+      const neighboringSlots = this.board.neighboringSlots(position);
+      const neighboringSlotsWithColor = neighboringSlots.filter((slot2) => slot2.color == this.currentPlayer.color);
+      const connections = neighboringSlotsWithColor.map((neighbor) => this.connect(neighbor, slot));
+      return connections.filter(Boolean);
+    }
+    connect(slot1, slot2) {
+      return this.board.connect(this.currentPlayer.color, [slot1, slot2]);
+    }
+    endTurn() {
+      this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length;
+    }
+    parse(moves) {
+      for (let move of moves.split(",")) {
+        const rawColumn = move[0];
+        const rawRow = move.substring(1);
+        const position = {
+          column: rawRow.charCodeAt(0) - "A".charCodeAt(0),
+          row: Number(rawColumn)
+        };
+        console.log(this.placePeg(position));
+      }
+    }
+  };
+
+  // src/twixt/gameUI/renderer.ts
   var EMPTY_SLOT_RADIUS = 4;
   var EMPTY_SLOT_COLOR = "#999";
   var PEG_RADIUS = 7;
@@ -98,7 +520,7 @@
     }
   };
 
-  // src/gameUI/canvas.ts
+  // src/twixt/gameUI/canvas.ts
   var Canvas = class {
     constructor() {
       this.canvas = document.getElementById("game-canvas");
@@ -116,6 +538,7 @@
       return Math.min(this.canvas.width, this.canvas.height);
     }
     clear() {
+      this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     }
     prerender() {
       this.ctx.drawImage(this.offscreenCanvas, 0, 0);
@@ -157,12 +580,22 @@
     }
   };
 
-  // src/gameUI.ts
+  // src/twixt/gameUI.ts
   var GameUI = class {
-    constructor(game, gameData) {
+    constructor(game, gameData, player) {
+      this.canvasClicked = (cursorPosition) => {
+        if (this.game.currentPlayer.color != this.color)
+          return;
+        const positionClicked = {
+          row: Math.floor(cursorPosition.y / this.slotGapSize) - BOARD_PADDING,
+          column: Math.floor(cursorPosition.x / this.slotGapSize) - BOARD_PADDING
+        };
+        this.gameData.write(positionClicked);
+      };
       this.moveMade = (position) => {
         this.game.placePeg(position);
         this.render();
+        this.currentPlayerSpan.innerText = this.game.currentPlayer.color;
       };
       this.windowResized = () => {
         this.canvas.setDimensions();
@@ -173,6 +606,12 @@
       this.gameData = gameData;
       this.canvas = new Canvas();
       this.renderer = new Renderer(this.canvas, this.game.board);
+      this.currentPlayerSpan = document.getElementById("current-player");
+      const playerColorSpan = document.getElementById("player-color");
+      gameData.getFirstPlayer((firstPlayer) => {
+        this.color = player == firstPlayer ? "RED" /* Red */ : "BLUE" /* Blue */;
+        playerColorSpan.innerText = this.color;
+      });
     }
     start() {
       this.canvas.setDimensions();
@@ -183,13 +622,6 @@
       this.canvas.whenClicked((cursorPosition) => this.canvasClicked(cursorPosition));
       this.renderer.draw();
     }
-    canvasClicked(cursorPosition) {
-      const positionClicked = {
-        row: Math.floor(cursorPosition.y / this.slotGapSize) - BOARD_PADDING,
-        column: Math.floor(cursorPosition.x / this.slotGapSize) - BOARD_PADDING
-      };
-      this.gameData.writeData(positionClicked);
-    }
     render() {
       this.renderer.draw();
     }
@@ -198,185 +630,24 @@
     }
   };
 
-  // src/board/vector.ts
-  var addVectors = (v1, v2) => {
-    return {
-      row: v1.row + v2.row,
-      column: v1.column + v2.column
-    };
+  // src/twixt/index.ts
+  var startGame = (dataStore2, player, id) => {
+    const game = new Game();
+    const gameData = new GameData(dataStore2, id);
+    const gameUI = new GameUI(game, gameData, player);
+    gameUI.start();
   };
-  var sameVectors = (vector1, vector2) => {
-    return vector1.row == vector2.row && vector1.column == vector2.column;
-  };
-  function intersects([a, b], [c, d]) {
-    const determinant = (b.row - a.row) * (d.column - c.column) - (d.row - c.row) * (b.column - a.column);
-    if (determinant == 0)
-      return false;
-    const lambda = ((d.column - c.column) * (d.row - a.row) + (c.row - d.row) * (d.column - a.column)) / determinant;
-    const gamma = ((a.column - b.column) * (d.row - a.row) + (b.row - a.row) * (d.column - a.column)) / determinant;
-    return 0 < lambda && lambda < 1 && (0 < gamma && gamma < 1);
+
+  // src/pages/playGame.ts
+  function PlayGame() {
+    setTimeout(() => {
+      startGame(
+        GlobalContext.dataStore,
+        GlobalContext.currentUser.name,
+        GlobalContext.gameId
+      );
+    }, 100);
   }
-
-  // src/board/slot.ts
-  var Slot = class {
-    constructor(position) {
-      this.color = null;
-      this.position = position;
-    }
-    get isOccupied() {
-      return this.color !== null;
-    }
-  };
-
-  // src/board/connection.ts
-  var Connection = class {
-    constructor(color, slots) {
-      this.overlaps = (otherConnection) => {
-        const firstPegConnectedToOtherConnection = otherConnection.positions.some((position) => sameVectors(this.positions[0], position));
-        const secondPegConnectedToOtherConnection = otherConnection.positions.some((position) => sameVectors(this.positions[1], position));
-        if (firstPegConnectedToOtherConnection && secondPegConnectedToOtherConnection)
-          return true;
-        if (firstPegConnectedToOtherConnection || secondPegConnectedToOtherConnection)
-          return false;
-        return intersects(this.positions, otherConnection.positions);
-      };
-      this.color = color;
-      this.slots = slots;
-    }
-    get positions() {
-      return [this.slots[0].position, this.slots[1].position];
-    }
-  };
-
-  // src/board.ts
-  var BOARD_SIZE = 18;
-  var _Board = class {
-    constructor(size = BOARD_SIZE) {
-      this.slots = [];
-      this.connections = [];
-      this.slotAt = (position) => {
-        return this.slots.find((slot) => sameVectors(slot.position, position));
-      };
-      this.isValidPosition = (position) => {
-        return this.isOnBoard(position) && !this.corners.some((corner) => sameVectors(position, corner));
-      };
-      this.isValidConnection = (connection) => {
-        return !this.connections.some((other) => connection.overlaps(other));
-      };
-      this.isOnBoard = (position) => {
-        return position.row >= 0 && position.row < this.size && position.column >= 0 && position.column < this.size;
-      };
-      this.size = size;
-      this.populateSlots(size);
-    }
-    place(color, position) {
-      if (!this.isValidPosition(position))
-        return null;
-      if (this.onOpponentBorder(position, color))
-        return null;
-      const slot = this.slotAt(position);
-      if (slot.isOccupied)
-        return null;
-      slot.color = color;
-      return slot;
-    }
-    connect(color, slots) {
-      const connection = new Connection(color, slots);
-      if (!this.isValidConnection(connection))
-        return null;
-      this.connections.push(connection);
-      return connection;
-    }
-    neighboringSlots(position) {
-      return this.neighboringPositions(position).map(this.slotAt).filter((slot) => slot.isOccupied);
-    }
-    populateSlots(size) {
-      for (let row = 0; row < size; row++) {
-        for (let column = 0; column < size; column++) {
-          const position = { row, column };
-          if (this.corners.some((corner) => sameVectors(position, corner)))
-            continue;
-          this.slots.push(new Slot(position));
-        }
-      }
-    }
-    get corners() {
-      return [
-        { row: 0, column: 0 },
-        { row: 0, column: this.size - 1 },
-        { row: this.size - 1, column: 0 },
-        { row: this.size - 1, column: this.size - 1 }
-      ];
-    }
-    onOpponentBorder(position, color) {
-      return color == "RED" /* Red */ && (position.column == 0 || position.column == this.size - 1) || color == "BLUE" /* Blue */ && (position.row == 0 || position.row == this.size - 1);
-    }
-    neighboringPositions(position) {
-      const potentialNeighbors = _Board.neighborDiffs.map((diff) => addVectors(position, diff));
-      return potentialNeighbors.filter(this.isValidPosition);
-    }
-  };
-  var Board = _Board;
-  Board.neighborDiffs = [
-    { row: 1, column: 2 },
-    { row: 2, column: 1 },
-    { row: 1, column: -2 },
-    { row: -2, column: 1 },
-    { row: -1, column: 2 },
-    { row: 2, column: -1 },
-    { row: -1, column: -2 },
-    { row: -2, column: -1 }
-  ];
-
-  // src/player.ts
-  var Player = class {
-    constructor(color) {
-      this.color = color;
-    }
-  };
-
-  // src/game.ts
-  var Game = class {
-    constructor() {
-      this.players = [new Player("RED" /* Red */), new Player("BLUE" /* Blue */)];
-      this.board = new Board();
-      this.currentPlayerIndex = 0;
-    }
-    get currentPlayer() {
-      return this.players[this.currentPlayerIndex];
-    }
-    placePeg(position) {
-      const slot = this.board.place(this.currentPlayer.color, position);
-      if (!slot)
-        return { slot, connectionsAdded: [] };
-      const connections = this.addConnections(position, slot);
-      this.endTurn();
-      return { slot, connectionsAdded: connections };
-    }
-    addConnections(position, slot) {
-      const neighboringSlots = this.board.neighboringSlots(position);
-      const neighboringSlotsWithColor = neighboringSlots.filter((slot2) => slot2.color == this.currentPlayer.color);
-      const connections = neighboringSlotsWithColor.map((neighbor) => this.connect(neighbor, slot));
-      return connections.filter(Boolean);
-    }
-    connect(slot1, slot2) {
-      return this.board.connect(this.currentPlayer.color, [slot1, slot2]);
-    }
-    endTurn() {
-      this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length;
-    }
-    parse(moves2) {
-      for (let move of moves2.split(",")) {
-        const rawColumn = move[0];
-        const rawRow = move.substring(1);
-        const position = {
-          column: rawRow.charCodeAt(0) - "A".charCodeAt(0),
-          row: Number(rawColumn)
-        };
-        console.log(this.placePeg(position));
-      }
-    }
-  };
 
   // node_modules/@firebase/util/dist/index.esm2017.js
   var CONSTANTS = {
@@ -1771,11 +2042,11 @@
     }
     if (blocked)
       request.addEventListener("blocked", () => blocked());
-    openPromise.then((db2) => {
+    openPromise.then((db) => {
       if (terminated)
-        db2.addEventListener("close", () => terminated());
+        db.addEventListener("close", () => terminated());
       if (blocking)
-        db2.addEventListener("versionchange", () => blocking());
+        db.addEventListener("versionchange", () => blocking());
     }).catch(() => {
     });
     return openPromise;
@@ -1899,11 +2170,11 @@
   };
   var _apps = /* @__PURE__ */ new Map();
   var _components = /* @__PURE__ */ new Map();
-  function _addComponent(app2, component) {
+  function _addComponent(app, component) {
     try {
-      app2.container.addComponent(component);
+      app.container.addComponent(component);
     } catch (e) {
-      logger.debug(`Component ${component.name} failed to register with FirebaseApp ${app2.name}`, e);
+      logger.debug(`Component ${component.name} failed to register with FirebaseApp ${app.name}`, e);
     }
   }
   function _registerComponent(component) {
@@ -1913,17 +2184,17 @@
       return false;
     }
     _components.set(componentName, component);
-    for (const app2 of _apps.values()) {
-      _addComponent(app2, component);
+    for (const app of _apps.values()) {
+      _addComponent(app, component);
     }
     return true;
   }
-  function _getProvider(app2, name4) {
-    const heartbeatController = app2.container.getProvider("heartbeat").getImmediate({ optional: true });
+  function _getProvider(app, name4) {
+    const heartbeatController = app.container.getProvider("heartbeat").getImmediate({ optional: true });
     if (heartbeatController) {
       void heartbeatController.triggerHeartbeat();
     }
-    return app2.container.getProvider(name4);
+    return app.container.getProvider(name4);
   }
   var ERRORS = {
     [
@@ -1973,12 +2244,12 @@
   };
   var ERROR_FACTORY = new ErrorFactory("app", "Firebase", ERRORS);
   var FirebaseAppImpl = class {
-    constructor(options, config, container) {
+    constructor(options, config2, container) {
       this._isDeleted = false;
       this._options = Object.assign({}, options);
-      this._config = Object.assign({}, config);
-      this._name = config.name;
-      this._automaticDataCollectionEnabled = config.automaticDataCollectionEnabled;
+      this._config = Object.assign({}, config2);
+      this._name = config2.name;
+      this._automaticDataCollectionEnabled = config2.automaticDataCollectionEnabled;
       this._container = container;
       this.container.addComponent(new Component(
         "app",
@@ -2033,8 +2304,8 @@
       const name5 = rawConfig;
       rawConfig = { name: name5 };
     }
-    const config = Object.assign({ name: DEFAULT_ENTRY_NAME2, automaticDataCollectionEnabled: false }, rawConfig);
-    const name4 = config.name;
+    const config2 = Object.assign({ name: DEFAULT_ENTRY_NAME2, automaticDataCollectionEnabled: false }, rawConfig);
+    const name4 = config2.name;
     if (typeof name4 !== "string" || !name4) {
       throw ERROR_FACTORY.create("bad-app-name", {
         appName: String(name4)
@@ -2049,7 +2320,7 @@
     }
     const existingApp = _apps.get(name4);
     if (existingApp) {
-      if (deepEqual(options, existingApp.options) && deepEqual(config, existingApp.config)) {
+      if (deepEqual(options, existingApp.options) && deepEqual(config2, existingApp.config)) {
         return existingApp;
       } else {
         throw ERROR_FACTORY.create("duplicate-app", { appName: name4 });
@@ -2059,19 +2330,19 @@
     for (const component of _components.values()) {
       container.addComponent(component);
     }
-    const newApp = new FirebaseAppImpl(options, config, container);
+    const newApp = new FirebaseAppImpl(options, config2, container);
     _apps.set(name4, newApp);
     return newApp;
   }
   function getApp(name4 = DEFAULT_ENTRY_NAME2) {
-    const app2 = _apps.get(name4);
-    if (!app2 && name4 === DEFAULT_ENTRY_NAME2) {
+    const app = _apps.get(name4);
+    if (!app && name4 === DEFAULT_ENTRY_NAME2) {
       return initializeApp();
     }
-    if (!app2) {
+    if (!app) {
       throw ERROR_FACTORY.create("no-app", { appName: name4 });
     }
-    return app2;
+    return app;
   }
   function registerVersion(libraryKeyOrName, version4, variant) {
     var _a;
@@ -2111,10 +2382,10 @@
   function getDbPromise() {
     if (!dbPromise) {
       dbPromise = openDB(DB_NAME, DB_VERSION, {
-        upgrade: (db2, oldVersion) => {
+        upgrade: (db, oldVersion) => {
           switch (oldVersion) {
             case 0:
-              db2.createObjectStore(STORE_NAME);
+              db.createObjectStore(STORE_NAME);
           }
         }
       }).catch((e) => {
@@ -2125,10 +2396,10 @@
     }
     return dbPromise;
   }
-  async function readHeartbeatsFromIndexedDB(app2) {
+  async function readHeartbeatsFromIndexedDB(app) {
     try {
-      const db2 = await getDbPromise();
-      return db2.transaction(STORE_NAME).objectStore(STORE_NAME).get(computeKey(app2));
+      const db = await getDbPromise();
+      return db.transaction(STORE_NAME).objectStore(STORE_NAME).get(computeKey(app));
     } catch (e) {
       if (e instanceof FirebaseError) {
         logger.warn(e.message);
@@ -2140,12 +2411,12 @@
       }
     }
   }
-  async function writeHeartbeatsToIndexedDB(app2, heartbeatObject) {
+  async function writeHeartbeatsToIndexedDB(app, heartbeatObject) {
     try {
-      const db2 = await getDbPromise();
-      const tx = db2.transaction(STORE_NAME, "readwrite");
+      const db = await getDbPromise();
+      const tx = db.transaction(STORE_NAME, "readwrite");
       const objectStore = tx.objectStore(STORE_NAME);
-      await objectStore.put(heartbeatObject, computeKey(app2));
+      await objectStore.put(heartbeatObject, computeKey(app));
       return tx.done;
     } catch (e) {
       if (e instanceof FirebaseError) {
@@ -2158,8 +2429,8 @@
       }
     }
   }
-  function computeKey(app2) {
-    return `${app2.name}!${app2.options.appId}`;
+  function computeKey(app) {
+    return `${app.name}!${app.options.appId}`;
   }
   var MAX_HEADER_BYTES = 1024;
   var STORED_HEARTBEAT_RETENTION_MAX_MILLIS = 30 * 24 * 60 * 60 * 1e3;
@@ -2167,8 +2438,8 @@
     constructor(container) {
       this.container = container;
       this._heartbeatsCache = null;
-      const app2 = this.container.getProvider("app").getImmediate();
-      this._storage = new HeartbeatStorageImpl(app2);
+      const app = this.container.getProvider("app").getImmediate();
+      this._storage = new HeartbeatStorageImpl(app);
       this._heartbeatsCachePromise = this._storage.read().then((result) => {
         this._heartbeatsCache = result;
         return result;
@@ -2261,8 +2532,8 @@
     };
   }
   var HeartbeatStorageImpl = class {
-    constructor(app2) {
-      this.app = app2;
+    constructor(app) {
+      this.app = app;
       this._canUseIndexedDBPromise = this.runIndexedDBEnvironmentCheck();
     }
     async runIndexedDBEnvironmentCheck() {
@@ -2675,7 +2946,7 @@
   var isWindowsStoreApp = function() {
     return typeof Windows === "object" && typeof Windows.UI === "object";
   };
-  function errorForServerCode(code, query2) {
+  function errorForServerCode(code, query) {
     let reason = "Unknown Error";
     if (code === "too_big") {
       reason = "The data requested exceeds the maximum size that can be accessed with a single request.";
@@ -2684,7 +2955,7 @@
     } else if (code === "unavailable") {
       reason = "The service is unavailable";
     }
-    const error2 = new Error(code + " at " + query2._path.toString() + ": " + reason);
+    const error2 = new Error(code + " at " + query._path.toString() + ": " + reason);
     error2.code = code.toUpperCase();
     return error2;
   }
@@ -2887,8 +3158,8 @@
     }
     toURLString() {
       const protocol = this.secure ? "https://" : "http://";
-      const query2 = this.includeNamespaceInQueryParams ? `?ns=${this.namespace}` : "";
-      return `${protocol}${this.host}/${query2}`;
+      const query = this.includeNamespaceInQueryParams ? `?ns=${this.namespace}` : "";
+      return `${protocol}${this.host}/${query}`;
     }
   };
   function repoInfoNeedsQueryParam(repoInfo) {
@@ -4545,12 +4816,12 @@
         this.requestCBHash_[curReqNum] = onResponse;
       }
     }
-    get(query2) {
+    get(query) {
       this.initConnection_();
       const deferred = new Deferred();
       const request = {
-        p: query2._path.toString(),
-        q: query2._queryObject
+        p: query._path.toString(),
+        q: query._queryObject
       };
       const outstandingGet = {
         action: "g",
@@ -4572,20 +4843,20 @@
       }
       return deferred.promise;
     }
-    listen(query2, currentHashFn, tag, onComplete) {
+    listen(query, currentHashFn, tag, onComplete) {
       this.initConnection_();
-      const queryId = query2._queryIdentifier;
-      const pathString = query2._path.toString();
+      const queryId = query._queryIdentifier;
+      const pathString = query._path.toString();
       this.log_("Listen called for " + pathString + " " + queryId);
       if (!this.listens.has(pathString)) {
         this.listens.set(pathString, /* @__PURE__ */ new Map());
       }
-      assert(query2._queryParams.isDefault() || !query2._queryParams.loadsAllData(), "listen() called for non-default but complete query");
+      assert(query._queryParams.isDefault() || !query._queryParams.loadsAllData(), "listen() called for non-default but complete query");
       assert(!this.listens.get(pathString).has(queryId), `listen() called twice for same path/queryId.`);
       const listenSpec = {
         onComplete,
         hashFn: currentHashFn,
-        query: query2,
+        query,
         tag
       };
       this.listens.get(pathString).set(queryId, listenSpec);
@@ -4594,22 +4865,22 @@
       }
     }
     sendGet_(index) {
-      const get = this.outstandingGets_[index];
-      this.sendRequest("g", get.request, (message) => {
+      const get2 = this.outstandingGets_[index];
+      this.sendRequest("g", get2.request, (message) => {
         delete this.outstandingGets_[index];
         this.outstandingGetCount_--;
         if (this.outstandingGetCount_ === 0) {
           this.outstandingGets_ = [];
         }
-        if (get.onComplete) {
-          get.onComplete(message);
+        if (get2.onComplete) {
+          get2.onComplete(message);
         }
       });
     }
     sendListen_(listenSpec) {
-      const query2 = listenSpec.query;
-      const pathString = query2._path.toString();
-      const queryId = query2._queryIdentifier;
+      const query = listenSpec.query;
+      const pathString = query._path.toString();
+      const queryId = query._queryIdentifier;
       this.log_("Listen on " + pathString + " for " + queryId);
       const req = {
         /*path*/
@@ -4617,7 +4888,7 @@
       };
       const action = "q";
       if (listenSpec.tag) {
-        req["q"] = query2._queryObject;
+        req["q"] = query._queryObject;
         req["t"] = listenSpec.tag;
       }
       req[
@@ -4633,7 +4904,7 @@
           /*status*/
           "s"
         ];
-        PersistentConnection.warnOnListenWarnings_(payload, query2);
+        PersistentConnection.warnOnListenWarnings_(payload, query);
         const currentListenSpec = this.listens.get(pathString) && this.listens.get(pathString).get(queryId);
         if (currentListenSpec === listenSpec) {
           this.log_("listen response", message);
@@ -4646,12 +4917,12 @@
         }
       });
     }
-    static warnOnListenWarnings_(payload, query2) {
+    static warnOnListenWarnings_(payload, query) {
       if (payload && typeof payload === "object" && contains(payload, "w")) {
         const warnings = safeGet(payload, "w");
         if (Array.isArray(warnings) && ~warnings.indexOf("no_index")) {
-          const indexSpec = '".indexOn": "' + query2._queryParams.getIndex().toString() + '"';
-          const indexPath = query2._path.toString();
+          const indexSpec = '".indexOn": "' + query._queryParams.getIndex().toString() + '"';
+          const indexPath = query._path.toString();
           warn(`Using an unspecified index. Your data will be downloaded and filtered on the client. Consider adding ${indexSpec} at ${indexPath} to your security rules for better performance.`);
         }
       }
@@ -4748,14 +5019,14 @@
     /**
      * @inheritDoc
      */
-    unlisten(query2, tag) {
-      const pathString = query2._path.toString();
-      const queryId = query2._queryIdentifier;
+    unlisten(query, tag) {
+      const pathString = query._path.toString();
+      const queryId = query._queryIdentifier;
       this.log_("Unlisten called for " + pathString + " " + queryId);
-      assert(query2._queryParams.isDefault() || !query2._queryParams.loadsAllData(), "unlisten() called for non-default but complete query");
+      assert(query._queryParams.isDefault() || !query._queryParams.loadsAllData(), "unlisten() called for non-default but complete query");
       const listen = this.removeListen_(pathString, queryId);
       if (listen && this.connected_) {
-        this.sendUnlisten_(pathString, queryId, query2._queryObject, tag);
+        this.sendUnlisten_(pathString, queryId, query._queryObject, tag);
       }
     }
     sendUnlisten_(pathString, queryId, queryObj, tag) {
@@ -5186,12 +5457,12 @@
         this.outstandingPuts_ = [];
       }
     }
-    onListenRevoked_(pathString, query2) {
+    onListenRevoked_(pathString, query) {
       let queryId;
-      if (!query2) {
+      if (!query) {
         queryId = "default";
       } else {
-        queryId = query2.map((q) => ObjectToUniqueKey(q)).join("$");
+        queryId = query.map((q) => ObjectToUniqueKey(q)).join("$");
       }
       const listen = this.removeListen_(pathString, queryId);
       if (listen && listen.onComplete) {
@@ -7372,22 +7643,22 @@
     reportStats(stats) {
       throw new Error("Method not implemented.");
     }
-    static getListenId_(query2, tag) {
+    static getListenId_(query, tag) {
       if (tag !== void 0) {
         return "tag$" + tag;
       } else {
-        assert(query2._queryParams.isDefault(), "should have a tag if it's not a default query.");
-        return query2._path.toString();
+        assert(query._queryParams.isDefault(), "should have a tag if it's not a default query.");
+        return query._path.toString();
       }
     }
     /** @inheritDoc */
-    listen(query2, currentHashFn, tag, onComplete) {
-      const pathString = query2._path.toString();
-      this.log_("Listen called for " + pathString + " " + query2._queryIdentifier);
-      const listenId = ReadonlyRestClient.getListenId_(query2, tag);
+    listen(query, currentHashFn, tag, onComplete) {
+      const pathString = query._path.toString();
+      this.log_("Listen called for " + pathString + " " + query._queryIdentifier);
+      const listenId = ReadonlyRestClient.getListenId_(query, tag);
       const thisListen = {};
       this.listens_[listenId] = thisListen;
-      const queryStringParameters = queryParamsToRestQueryStringParameters(query2._queryParams);
+      const queryStringParameters = queryParamsToRestQueryStringParameters(query._queryParams);
       this.restRequest_(pathString + ".json", queryStringParameters, (error2, result) => {
         let data = result;
         if (error2 === 404) {
@@ -7417,13 +7688,13 @@
       });
     }
     /** @inheritDoc */
-    unlisten(query2, tag) {
-      const listenId = ReadonlyRestClient.getListenId_(query2, tag);
+    unlisten(query, tag) {
+      const listenId = ReadonlyRestClient.getListenId_(query, tag);
       delete this.listens_[listenId];
     }
-    get(query2) {
-      const queryStringParameters = queryParamsToRestQueryStringParameters(query2._queryParams);
-      const pathString = query2._path.toString();
+    get(query) {
+      const queryStringParameters = queryParamsToRestQueryStringParameters(query._queryParams);
+      const pathString = query._path.toString();
       const deferred = new Deferred();
       this.restRequest_(pathString + ".json", queryStringParameters, (error2, result) => {
         let data = result;
@@ -7747,15 +8018,15 @@
   };
   function eventGeneratorGenerateEventsForChanges(eventGenerator, changes, eventCache, eventRegistrations) {
     const events = [];
-    const moves2 = [];
+    const moves = [];
     changes.forEach((change) => {
       if (change.type === "child_changed" && eventGenerator.index_.indexedValueChanged(change.oldSnap, change.snapshotNode)) {
-        moves2.push(changeChildMoved(change.childName, change.snapshotNode));
+        moves.push(changeChildMoved(change.childName, change.snapshotNode));
       }
     });
     eventGeneratorGenerateEventsForType(eventGenerator, events, "child_removed", changes, eventRegistrations, eventCache);
     eventGeneratorGenerateEventsForType(eventGenerator, events, "child_added", changes, eventRegistrations, eventCache);
-    eventGeneratorGenerateEventsForType(eventGenerator, events, "child_moved", moves2, eventRegistrations, eventCache);
+    eventGeneratorGenerateEventsForType(eventGenerator, events, "child_moved", moves, eventRegistrations, eventCache);
     eventGeneratorGenerateEventsForType(eventGenerator, events, "child_changed", changes, eventRegistrations, eventCache);
     eventGeneratorGenerateEventsForType(eventGenerator, events, "value", changes, eventRegistrations, eventCache);
     return events;
@@ -8851,6 +9122,9 @@
   function viewGetServerCache(view) {
     return view.viewCache_.serverCache.getNode();
   }
+  function viewGetCompleteNode(view) {
+    return viewCacheGetCompleteEventSnap(view.viewCache_);
+  }
   function viewGetCompleteServerCache(view, path) {
     const cache = viewCacheGetCompleteServerSnap(view.viewCache_);
     if (cache) {
@@ -8956,8 +9230,8 @@
       return events;
     }
   }
-  function syncPointGetView(syncPoint, query2, writesCache, serverCache, serverCacheComplete) {
-    const queryId = query2._queryIdentifier;
+  function syncPointGetView(syncPoint, query, writesCache, serverCache, serverCacheComplete) {
+    const queryId = query._queryIdentifier;
     const view = syncPoint.views.get(queryId);
     if (!view) {
       let eventCache = writeTreeRefCalcCompleteEventCache(writesCache, serverCacheComplete ? serverCache : null);
@@ -8972,20 +9246,20 @@
         eventCacheComplete = false;
       }
       const viewCache = newViewCache(new CacheNode(eventCache, eventCacheComplete, false), new CacheNode(serverCache, serverCacheComplete, false));
-      return new View(query2, viewCache);
+      return new View(query, viewCache);
     }
     return view;
   }
-  function syncPointAddEventRegistration(syncPoint, query2, eventRegistration, writesCache, serverCache, serverCacheComplete) {
-    const view = syncPointGetView(syncPoint, query2, writesCache, serverCache, serverCacheComplete);
-    if (!syncPoint.views.has(query2._queryIdentifier)) {
-      syncPoint.views.set(query2._queryIdentifier, view);
+  function syncPointAddEventRegistration(syncPoint, query, eventRegistration, writesCache, serverCache, serverCacheComplete) {
+    const view = syncPointGetView(syncPoint, query, writesCache, serverCache, serverCacheComplete);
+    if (!syncPoint.views.has(query._queryIdentifier)) {
+      syncPoint.views.set(query._queryIdentifier, view);
     }
     viewAddEventRegistration(view, eventRegistration);
     return viewGetInitialEvents(view, eventRegistration);
   }
-  function syncPointRemoveEventRegistration(syncPoint, query2, eventRegistration, cancelError) {
-    const queryId = query2._queryIdentifier;
+  function syncPointRemoveEventRegistration(syncPoint, query, eventRegistration, cancelError) {
+    const queryId = query._queryIdentifier;
     const removed = [];
     let cancelEvents = [];
     const hadCompleteView = syncPointHasCompleteView(syncPoint);
@@ -9012,7 +9286,7 @@
       }
     }
     if (hadCompleteView && !syncPointHasCompleteView(syncPoint)) {
-      removed.push(new (syncPointGetReferenceConstructor())(query2._repo, query2._path));
+      removed.push(new (syncPointGetReferenceConstructor())(query._repo, query._path));
     }
     return { removed, events: cancelEvents };
   }
@@ -9032,17 +9306,17 @@
     }
     return serverCache;
   }
-  function syncPointViewForQuery(syncPoint, query2) {
-    const params = query2._queryParams;
+  function syncPointViewForQuery(syncPoint, query) {
+    const params = query._queryParams;
     if (params.loadsAllData()) {
       return syncPointGetCompleteView(syncPoint);
     } else {
-      const queryId = query2._queryIdentifier;
+      const queryId = query._queryIdentifier;
       return syncPoint.views.get(queryId);
     }
   }
-  function syncPointViewExistsForQuery(syncPoint, query2) {
-    return syncPointViewForQuery(syncPoint, query2) != null;
+  function syncPointViewExistsForQuery(syncPoint, query) {
+    return syncPointViewForQuery(syncPoint, query) != null;
   }
   function syncPointHasCompleteView(syncPoint) {
     return syncPointGetCompleteView(syncPoint) != null;
@@ -9125,20 +9399,20 @@
       return [];
     }
   }
-  function syncTreeRemoveEventRegistration(syncTree, query2, eventRegistration, cancelError, skipListenerDedup = false) {
-    const path = query2._path;
+  function syncTreeRemoveEventRegistration(syncTree, query, eventRegistration, cancelError, skipListenerDedup = false) {
+    const path = query._path;
     const maybeSyncPoint = syncTree.syncPointTree_.get(path);
     let cancelEvents = [];
-    if (maybeSyncPoint && (query2._queryIdentifier === "default" || syncPointViewExistsForQuery(maybeSyncPoint, query2))) {
-      const removedAndEvents = syncPointRemoveEventRegistration(maybeSyncPoint, query2, eventRegistration, cancelError);
+    if (maybeSyncPoint && (query._queryIdentifier === "default" || syncPointViewExistsForQuery(maybeSyncPoint, query))) {
+      const removedAndEvents = syncPointRemoveEventRegistration(maybeSyncPoint, query, eventRegistration, cancelError);
       if (syncPointIsEmpty(maybeSyncPoint)) {
         syncTree.syncPointTree_ = syncTree.syncPointTree_.remove(path);
       }
       const removed = removedAndEvents.removed;
       cancelEvents = removedAndEvents.events;
       if (!skipListenerDedup) {
-        const removingDefault = -1 !== removed.findIndex((query3) => {
-          return query3._queryParams.loadsAllData();
+        const removingDefault = -1 !== removed.findIndex((query2) => {
+          return query2._queryParams.loadsAllData();
         });
         const covered = syncTree.syncPointTree_.findOnPath(path, (relativePath, parentSyncPoint) => syncPointHasCompleteView(parentSyncPoint));
         if (removingDefault && !covered) {
@@ -9155,7 +9429,7 @@
         if (!covered && removed.length > 0 && !cancelError) {
           if (removingDefault) {
             const defaultTag = null;
-            syncTree.listenProvider_.stopListening(syncTreeQueryForListening_(query2), defaultTag);
+            syncTree.listenProvider_.stopListening(syncTreeQueryForListening_(query), defaultTag);
           } else {
             removed.forEach((queryToRemove) => {
               const tagToRemove = syncTree.queryToTagMap.get(syncTreeMakeQueryKey_(queryToRemove));
@@ -9193,8 +9467,8 @@
       return [];
     }
   }
-  function syncTreeAddEventRegistration(syncTree, query2, eventRegistration, skipSetupListener = false) {
-    const path = query2._path;
+  function syncTreeAddEventRegistration(syncTree, query, eventRegistration, skipSetupListener = false) {
+    const path = query._path;
     let serverCache = null;
     let foundAncestorDefaultView = false;
     syncTree.syncPointTree_.foreachOnPath(path, (pathToSyncPoint, sp) => {
@@ -9224,19 +9498,19 @@
         }
       });
     }
-    const viewAlreadyExists = syncPointViewExistsForQuery(syncPoint, query2);
-    if (!viewAlreadyExists && !query2._queryParams.loadsAllData()) {
-      const queryKey = syncTreeMakeQueryKey_(query2);
+    const viewAlreadyExists = syncPointViewExistsForQuery(syncPoint, query);
+    if (!viewAlreadyExists && !query._queryParams.loadsAllData()) {
+      const queryKey = syncTreeMakeQueryKey_(query);
       assert(!syncTree.queryToTagMap.has(queryKey), "View does not exist, but we have a tag");
       const tag = syncTreeGetNextQueryTag_();
       syncTree.queryToTagMap.set(queryKey, tag);
       syncTree.tagToQueryMap.set(tag, queryKey);
     }
     const writesCache = writeTreeChildWrites(syncTree.pendingWriteTree_, path);
-    let events = syncPointAddEventRegistration(syncPoint, query2, eventRegistration, writesCache, serverCache, serverCacheComplete);
+    let events = syncPointAddEventRegistration(syncPoint, query, eventRegistration, writesCache, serverCache, serverCacheComplete);
     if (!viewAlreadyExists && !foundAncestorDefaultView && !skipSetupListener) {
-      const view = syncPointViewForQuery(syncPoint, query2);
-      events = events.concat(syncTreeSetupListener_(syncTree, query2, view));
+      const view = syncPointViewForQuery(syncPoint, query);
+      events = events.concat(syncTreeSetupListener_(syncTree, query, view));
     }
     return events;
   }
@@ -9251,6 +9525,26 @@
       }
     });
     return writeTreeCalcCompleteEventCache(writeTree, path, serverCache, writeIdsToExclude, includeHiddenSets);
+  }
+  function syncTreeGetServerValue(syncTree, query) {
+    const path = query._path;
+    let serverCache = null;
+    syncTree.syncPointTree_.foreachOnPath(path, (pathToSyncPoint, sp) => {
+      const relativePath = newRelativePath(pathToSyncPoint, path);
+      serverCache = serverCache || syncPointGetCompleteServerCache(sp, relativePath);
+    });
+    let syncPoint = syncTree.syncPointTree_.get(path);
+    if (!syncPoint) {
+      syncPoint = new SyncPoint();
+      syncTree.syncPointTree_ = syncTree.syncPointTree_.set(path, syncPoint);
+    } else {
+      serverCache = serverCache || syncPointGetCompleteServerCache(syncPoint, newEmptyPath());
+    }
+    const serverCacheComplete = serverCache != null;
+    const serverCacheNode = serverCacheComplete ? new CacheNode(serverCache, true, false) : null;
+    const writesCache = writeTreeChildWrites(syncTree.pendingWriteTree_, query._path);
+    const view = syncPointGetView(syncPoint, query, writesCache, serverCacheComplete ? serverCacheNode.getNode() : ChildrenNode.EMPTY_NODE, serverCacheComplete);
+    return viewGetCompleteNode(view);
   }
   function syncTreeApplyOperationToSyncPoints_(syncTree, operation) {
     return syncTreeApplyOperationHelper_(
@@ -9304,8 +9598,8 @@
     return events;
   }
   function syncTreeCreateListenerForView_(syncTree, view) {
-    const query2 = view.query;
-    const tag = syncTreeTagForQuery(syncTree, query2);
+    const query = view.query;
+    const tag = syncTreeTagForQuery(syncTree, query);
     return {
       hashFn: () => {
         const cache = viewGetServerCache(view) || ChildrenNode.EMPTY_NODE;
@@ -9314,15 +9608,15 @@
       onComplete: (status) => {
         if (status === "ok") {
           if (tag) {
-            return syncTreeApplyTaggedListenComplete(syncTree, query2._path, tag);
+            return syncTreeApplyTaggedListenComplete(syncTree, query._path, tag);
           } else {
-            return syncTreeApplyListenComplete(syncTree, query2._path);
+            return syncTreeApplyListenComplete(syncTree, query._path);
           }
         } else {
-          const error2 = errorForServerCode(status, query2);
+          const error2 = errorForServerCode(status, query);
           return syncTreeRemoveEventRegistration(
             syncTree,
-            query2,
+            query,
             /*eventRegistration*/
             null,
             error2
@@ -9331,12 +9625,12 @@
       }
     };
   }
-  function syncTreeTagForQuery(syncTree, query2) {
-    const queryKey = syncTreeMakeQueryKey_(query2);
+  function syncTreeTagForQuery(syncTree, query) {
+    const queryKey = syncTreeMakeQueryKey_(query);
     return syncTree.queryToTagMap.get(queryKey);
   }
-  function syncTreeMakeQueryKey_(query2) {
-    return query2._path.toString() + "$" + query2._queryIdentifier;
+  function syncTreeMakeQueryKey_(query) {
+    return query._path.toString() + "$" + query._queryIdentifier;
   }
   function syncTreeQueryKeyForTag_(syncTree, tag) {
     return syncTree.tagToQueryMap.get(tag);
@@ -9372,11 +9666,11 @@
       }
     });
   }
-  function syncTreeQueryForListening_(query2) {
-    if (query2._queryParams.loadsAllData() && !query2._queryParams.isDefault()) {
-      return new (syncTreeGetReferenceConstructor())(query2._repo, query2._path);
+  function syncTreeQueryForListening_(query) {
+    if (query._queryParams.loadsAllData() && !query._queryParams.isDefault()) {
+      return new (syncTreeGetReferenceConstructor())(query._repo, query._path);
     } else {
-      return query2;
+      return query;
     }
   }
   function syncTreeRemoveTags_(syncTree, queries) {
@@ -9393,11 +9687,11 @@
   function syncTreeGetNextQueryTag_() {
     return syncTreeNextQueryTag_++;
   }
-  function syncTreeSetupListener_(syncTree, query2, view) {
-    const path = query2._path;
-    const tag = syncTreeTagForQuery(syncTree, query2);
+  function syncTreeSetupListener_(syncTree, query, view) {
+    const path = query._path;
+    const tag = syncTreeTagForQuery(syncTree, query);
     const listener = syncTreeCreateListenerForView_(syncTree, view);
-    const events = syncTree.listenProvider_.startListening(syncTreeQueryForListening_(query2), tag, listener.hashFn, listener.onComplete);
+    const events = syncTree.listenProvider_.startListening(syncTreeQueryForListening_(query), tag, listener.hashFn, listener.onComplete);
     const subtree = syncTree.syncPointTree_.subtree(path);
     if (tag) {
       assert(!syncPointHasCompleteView(subtree.value), "If we're adding a query, it shouldn't be shadowed");
@@ -9824,11 +10118,11 @@
     repo.statsReporter_ = statsManagerGetOrCreateReporter(repo.repoInfo_, () => new StatsReporter(repo.stats_, repo.server_));
     repo.infoData_ = new SnapshotHolder();
     repo.infoSyncTree_ = new SyncTree({
-      startListening: (query2, tag, currentHashFn, onComplete) => {
+      startListening: (query, tag, currentHashFn, onComplete) => {
         let infoEvents = [];
-        const node = repo.infoData_.getNode(query2._path);
+        const node = repo.infoData_.getNode(query._path);
         if (!node.isEmpty()) {
-          infoEvents = syncTreeApplyServerOverwrite(repo.infoSyncTree_, query2._path, node);
+          infoEvents = syncTreeApplyServerOverwrite(repo.infoSyncTree_, query._path, node);
           setTimeout(() => {
             onComplete("ok");
           }, 0);
@@ -9840,15 +10134,15 @@
     });
     repoUpdateInfo(repo, "connected", false);
     repo.serverSyncTree_ = new SyncTree({
-      startListening: (query2, tag, currentHashFn, onComplete) => {
-        repo.server_.listen(query2, currentHashFn, tag, (status, data) => {
+      startListening: (query, tag, currentHashFn, onComplete) => {
+        repo.server_.listen(query, currentHashFn, tag, (status, data) => {
           const events = onComplete(status, data);
-          eventQueueRaiseEventsForChangedPath(repo.eventQueue_, query2._path, events);
+          eventQueueRaiseEventsForChangedPath(repo.eventQueue_, query._path, events);
         });
         return [];
       },
-      stopListening: (query2, tag) => {
-        repo.server_.unlisten(query2, tag);
+      stopListening: (query, tag) => {
+        repo.server_.unlisten(query, tag);
       }
     });
   }
@@ -9909,6 +10203,29 @@
   function repoGetNextWriteId(repo) {
     return repo.nextWriteId_++;
   }
+  function repoGetValue(repo, query, eventRegistration) {
+    const cached = syncTreeGetServerValue(repo.serverSyncTree_, query);
+    if (cached != null) {
+      return Promise.resolve(cached);
+    }
+    return repo.server_.get(query).then((payload) => {
+      const node = nodeFromJSON(payload).withIndex(query._queryParams.getIndex());
+      syncTreeAddEventRegistration(repo.serverSyncTree_, query, eventRegistration, true);
+      let events;
+      if (query._queryParams.loadsAllData()) {
+        events = syncTreeApplyServerOverwrite(repo.serverSyncTree_, query._path, node);
+      } else {
+        const tag = syncTreeTagForQuery(repo.serverSyncTree_, query);
+        events = syncTreeApplyTaggedQueryOverwrite(repo.serverSyncTree_, query._path, node, tag);
+      }
+      eventQueueRaiseEventsForChangedPath(repo.eventQueue_, query._path, events);
+      syncTreeRemoveEventRegistration(repo.serverSyncTree_, query, eventRegistration, null, true);
+      return node;
+    }, (err) => {
+      repoLog(repo, "get for query " + stringify(query) + " failed: " + err);
+      return Promise.reject(new Error(err));
+    });
+  }
   function repoSetWithPriority(repo, path, newVal, newPriority, onComplete) {
     repoLog(repo, "set", {
       path: path.toString(),
@@ -9955,23 +10272,23 @@
     repo.onDisconnect_ = newSparseSnapshotTree();
     eventQueueRaiseEventsForChangedPath(repo.eventQueue_, newEmptyPath(), events);
   }
-  function repoAddEventCallbackForQuery(repo, query2, eventRegistration) {
+  function repoAddEventCallbackForQuery(repo, query, eventRegistration) {
     let events;
-    if (pathGetFront(query2._path) === ".info") {
-      events = syncTreeAddEventRegistration(repo.infoSyncTree_, query2, eventRegistration);
+    if (pathGetFront(query._path) === ".info") {
+      events = syncTreeAddEventRegistration(repo.infoSyncTree_, query, eventRegistration);
     } else {
-      events = syncTreeAddEventRegistration(repo.serverSyncTree_, query2, eventRegistration);
+      events = syncTreeAddEventRegistration(repo.serverSyncTree_, query, eventRegistration);
     }
-    eventQueueRaiseEventsAtPath(repo.eventQueue_, query2._path, events);
+    eventQueueRaiseEventsAtPath(repo.eventQueue_, query._path, events);
   }
-  function repoRemoveEventCallbackForQuery(repo, query2, eventRegistration) {
+  function repoRemoveEventCallbackForQuery(repo, query, eventRegistration) {
     let events;
-    if (pathGetFront(query2._path) === ".info") {
-      events = syncTreeRemoveEventRegistration(repo.infoSyncTree_, query2, eventRegistration);
+    if (pathGetFront(query._path) === ".info") {
+      events = syncTreeRemoveEventRegistration(repo.infoSyncTree_, query, eventRegistration);
     } else {
-      events = syncTreeRemoveEventRegistration(repo.serverSyncTree_, query2, eventRegistration);
+      events = syncTreeRemoveEventRegistration(repo.serverSyncTree_, query, eventRegistration);
     }
-    eventQueueRaiseEventsAtPath(repo.eventQueue_, query2._path, events);
+    eventQueueRaiseEventsAtPath(repo.eventQueue_, query._path, events);
   }
   function repoInterrupt(repo) {
     if (repo.persistentConnection_) {
@@ -10694,10 +11011,10 @@
       return this._node.val();
     }
   };
-  function ref(db2, path) {
-    db2 = getModularInstance(db2);
-    db2._checkNotDeleted("ref");
-    return path !== void 0 ? child(db2._root, path) : db2._root;
+  function ref(db, path) {
+    db = getModularInstance(db);
+    db._checkNotDeleted("ref");
+    return path !== void 0 ? child(db._root, path) : db._root;
   }
   function child(parent, path) {
     parent = getModularInstance(parent);
@@ -10726,6 +11043,10 @@
     thennablePushRef.catch = promise.then.bind(promise, void 0);
     return thennablePushRef;
   }
+  function remove(ref2) {
+    validateWritablePath("remove", ref2._path);
+    return set(ref2, null);
+  }
   function set(ref2, value) {
     ref2 = getModularInstance(ref2);
     validateWritablePath("set", ref2._path);
@@ -10742,6 +11063,15 @@
     );
     return deferred.promise;
   }
+  function get(query) {
+    query = getModularInstance(query);
+    const callbackContext = new CallbackContext(() => {
+    });
+    const container = new ValueEventRegistration(callbackContext);
+    return repoGetValue(query._repo, query, container).then((node) => {
+      return new DataSnapshot(node, new ReferenceImpl(query._repo, query._path), query._queryParams.getIndex());
+    });
+  }
   var ValueEventRegistration = class {
     constructor(callbackContext) {
       this.callbackContext = callbackContext;
@@ -10749,9 +11079,9 @@
     respondsTo(eventType) {
       return eventType === "value";
     }
-    createEvent(change, query2) {
-      const index = query2._queryParams.getIndex();
-      return new DataEvent("value", this, new DataSnapshot(change.snapshotNode, new ReferenceImpl(query2._repo, query2._path), index));
+    createEvent(change, query) {
+      const index = query._queryParams.getIndex();
+      return new DataEvent("value", this, new DataSnapshot(change.snapshotNode, new ReferenceImpl(query._repo, query._path), index));
     }
     getEventRunner(eventData) {
       if (eventData.getEventType() === "cancel") {
@@ -10797,10 +11127,10 @@
         return null;
       }
     }
-    createEvent(change, query2) {
+    createEvent(change, query) {
       assert(change.childName != null, "Child events should have a childName.");
-      const childRef = child(new ReferenceImpl(query2._repo, query2._path), change.childName);
-      const index = query2._queryParams.getIndex();
+      const childRef = child(new ReferenceImpl(query._repo, query._path), change.childName);
+      const index = query._queryParams.getIndex();
       return new DataEvent(change.type, this, new DataSnapshot(change.snapshotNode, childRef, index), change.prevName);
     }
     getEventRunner(eventData) {
@@ -10820,7 +11150,7 @@
       return !!this.callbackContext;
     }
   };
-  function addEventListener(query2, eventType, callback, cancelCallbackOrListenOptions, options) {
+  function addEventListener(query, eventType, callback, cancelCallbackOrListenOptions, options) {
     let cancelCallback;
     if (typeof cancelCallbackOrListenOptions === "object") {
       cancelCallback = void 0;
@@ -10832,7 +11162,7 @@
     if (options && options.onlyOnce) {
       const userCallback = callback;
       const onceCallback = (dataSnapshot, previousChildName) => {
-        repoRemoveEventCallbackForQuery(query2._repo, query2, container);
+        repoRemoveEventCallbackForQuery(query._repo, query, container);
         userCallback(dataSnapshot, previousChildName);
       };
       onceCallback.userCallback = callback.userCallback;
@@ -10841,11 +11171,17 @@
     }
     const callbackContext = new CallbackContext(callback, cancelCallback || void 0);
     const container = eventType === "value" ? new ValueEventRegistration(callbackContext) : new ChildEventRegistration(eventType, callbackContext);
-    repoAddEventCallbackForQuery(query2._repo, query2, container);
-    return () => repoRemoveEventCallbackForQuery(query2._repo, query2, container);
+    repoAddEventCallbackForQuery(query._repo, query, container);
+    return () => repoRemoveEventCallbackForQuery(query._repo, query, container);
   }
-  function onChildAdded(query2, callback, cancelCallbackOrListenOptions, options) {
-    return addEventListener(query2, "child_added", callback, cancelCallbackOrListenOptions, options);
+  function onChildAdded(query, callback, cancelCallbackOrListenOptions, options) {
+    return addEventListener(query, "child_added", callback, cancelCallbackOrListenOptions, options);
+  }
+  function onChildChanged(query, callback, cancelCallbackOrListenOptions, options) {
+    return addEventListener(query, "child_changed", callback, cancelCallbackOrListenOptions, options);
+  }
+  function onChildRemoved(query, callback, cancelCallbackOrListenOptions, options) {
+    return addEventListener(query, "child_removed", callback, cancelCallbackOrListenOptions, options);
   }
   syncPointSetReferenceConstructor(ReferenceImpl);
   syncTreeSetReferenceConstructor(ReferenceImpl);
@@ -10869,14 +11205,14 @@
       repo.authTokenProvider_ = tokenProvider;
     }
   }
-  function repoManagerDatabaseFromApp(app2, authProvider, appCheckProvider, url, nodeAdmin) {
-    let dbUrl = url || app2.options.databaseURL;
+  function repoManagerDatabaseFromApp(app, authProvider, appCheckProvider, url, nodeAdmin) {
+    let dbUrl = url || app.options.databaseURL;
     if (dbUrl === void 0) {
-      if (!app2.options.projectId) {
+      if (!app.options.projectId) {
         fatal("Can't determine Firebase Database URL. Be sure to include  a Project ID when calling firebase.initializeApp().");
       }
-      log("Using default host for project ", app2.options.projectId);
-      dbUrl = `${app2.options.projectId}-default-rtdb.firebaseio.com`;
+      log("Using default host for project ", app.options.projectId);
+      dbUrl = `${app.options.projectId}-default-rtdb.firebaseio.com`;
     }
     let parsedUrl = parseRepoInfo(dbUrl, nodeAdmin);
     let repoInfo = parsedUrl.repoInfo;
@@ -10893,13 +11229,13 @@
     } else {
       isEmulator = !parsedUrl.repoInfo.secure;
     }
-    const authTokenProvider = nodeAdmin && isEmulator ? new EmulatorTokenProvider(EmulatorTokenProvider.OWNER) : new FirebaseAuthTokenProvider(app2.name, app2.options, authProvider);
+    const authTokenProvider = nodeAdmin && isEmulator ? new EmulatorTokenProvider(EmulatorTokenProvider.OWNER) : new FirebaseAuthTokenProvider(app.name, app.options, authProvider);
     validateUrl("Invalid Firebase Database URL", parsedUrl);
     if (!pathIsEmpty(parsedUrl.path)) {
       fatal("Database URL must point to the root of a Firebase Database (not including a child path).");
     }
-    const repo = repoManagerCreateRepo(repoInfo, app2, authTokenProvider, new AppCheckTokenProvider(app2.name, appCheckProvider));
-    return new Database(repo, app2);
+    const repo = repoManagerCreateRepo(repoInfo, app, authTokenProvider, new AppCheckTokenProvider(app.name, appCheckProvider));
+    return new Database(repo, app);
   }
   function repoManagerDeleteRepo(repo, appName) {
     const appRepos = repos[appName];
@@ -10909,11 +11245,11 @@
     repoInterrupt(repo);
     delete appRepos[repo.key];
   }
-  function repoManagerCreateRepo(repoInfo, app2, authTokenProvider, appCheckProvider) {
-    let appRepos = repos[app2.name];
+  function repoManagerCreateRepo(repoInfo, app, authTokenProvider, appCheckProvider) {
+    let appRepos = repos[app.name];
     if (!appRepos) {
       appRepos = {};
-      repos[app2.name] = appRepos;
+      repos[app.name] = appRepos;
     }
     let repo = appRepos[repoInfo.toURLString()];
     if (repo) {
@@ -10925,9 +11261,9 @@
   }
   var Database = class {
     /** @hideconstructor */
-    constructor(_repoInternal, app2) {
+    constructor(_repoInternal, app) {
       this._repoInternal = _repoInternal;
-      this.app = app2;
+      this.app = app;
       this["type"] = "database";
       this._instanceStarted = false;
     }
@@ -10958,25 +11294,25 @@
       }
     }
   };
-  function getDatabase(app2 = getApp(), url) {
-    const db2 = _getProvider(app2, "database").getImmediate({
+  function getDatabase(app = getApp(), url) {
+    const db = _getProvider(app, "database").getImmediate({
       identifier: url
     });
-    if (!db2._instanceStarted) {
+    if (!db._instanceStarted) {
       const emulator = getDefaultEmulatorHostnameAndPort("database");
       if (emulator) {
-        connectDatabaseEmulator(db2, ...emulator);
+        connectDatabaseEmulator(db, ...emulator);
       }
     }
-    return db2;
+    return db;
   }
-  function connectDatabaseEmulator(db2, host, port, options = {}) {
-    db2 = getModularInstance(db2);
-    db2._checkNotDeleted("useEmulator");
-    if (db2._instanceStarted) {
+  function connectDatabaseEmulator(db, host, port, options = {}) {
+    db = getModularInstance(db);
+    db._checkNotDeleted("useEmulator");
+    if (db._instanceStarted) {
       fatal("Cannot call useEmulator() after instance has already been initialized.");
     }
-    const repo = db2._repoInternal;
+    const repo = db._repoInternal;
     let tokenProvider = void 0;
     if (repo.repoInfo_.nodeAdmin) {
       if (options.mockUserToken) {
@@ -10984,7 +11320,7 @@
       }
       tokenProvider = new EmulatorTokenProvider(EmulatorTokenProvider.OWNER);
     } else if (options.mockUserToken) {
-      const token = typeof options.mockUserToken === "string" ? options.mockUserToken : createMockUserToken(options.mockUserToken, db2.app.options.projectId);
+      const token = typeof options.mockUserToken === "string" ? options.mockUserToken : createMockUserToken(options.mockUserToken, db.app.options.projectId);
       tokenProvider = new EmulatorTokenProvider(token);
     }
     repoManagerApplyEmulatorSettings(repo, host, port, tokenProvider);
@@ -10994,10 +11330,10 @@
     _registerComponent(new Component(
       "database",
       (container, { instanceIdentifier: url }) => {
-        const app2 = container.getProvider("app").getImmediate();
+        const app = container.getProvider("app").getImmediate();
         const authProvider = container.getProvider("auth-internal");
         const appCheckProvider = container.getProvider("app-check-internal");
-        return repoManagerDatabaseFromApp(app2, authProvider, appCheckProvider, url);
+        return repoManagerDatabaseFromApp(app, authProvider, appCheckProvider, url);
       },
       "PUBLIC"
       /* ComponentType.PUBLIC */
@@ -11013,84 +11349,106 @@
   };
   registerDatabase();
 
-  // src/sync.ts
-  var firebaseConfig = {
-    apiKey: "AIzaSyBiVEerDSeDFrUaTn8nbY58WAuPr6XtbcQ",
-    authDomain: "mw-twixt.firebaseapp.com",
-    databaseURL: "https://mw-twixt-default-rtdb.firebaseio.com",
-    projectId: "mw-twixt",
-    storageBucket: "mw-twixt.appspot.com",
-    messagingSenderId: "1048357586138",
-    appId: "1:1048357586138:web:652cab4962c73e83e5d1e3",
-    measurementId: "G-2DV7T5RWJB"
+  // src/dataStore/firebase.ts
+  var environment = "local";
+  var newDataStore = (environment2, db) => {
+    const reference = (path) => {
+      console.log(db);
+      return ref(db, [environment2, path].join("/"));
+    };
+    const read = (path, callback) => {
+      get(reference(path)).then((snapshot) => callback(snapshot.val(), snapshot.key));
+    };
+    const write = (path, data) => {
+      set(reference(path), data);
+    };
+    const append = (path, data) => {
+      push(reference(path), data);
+    };
+    const childAdded = (path, callback) => {
+      onChildAdded(reference(path), (snapshot) => callback(snapshot.val(), snapshot.key));
+    };
+    const childChanged = (path, callback) => {
+      onChildChanged(reference(path), (snapshot) => callback(snapshot.val(), snapshot.key));
+    };
+    const childRemoved = (path, callback) => {
+      onChildRemoved(reference(path), (snapshot) => callback(snapshot.key));
+    };
+    const destroy = (path) => {
+      remove(reference(path));
+    };
+    return {
+      read,
+      write,
+      append,
+      destroy,
+      onChildAdded: childAdded,
+      onChildChanged: childChanged,
+      onChildRemoved: childRemoved
+    };
   };
-  var app = initializeApp(firebaseConfig);
-  var db = getDatabase();
-  var moves = ref(db, "moves");
-  var writeData = (path, data) => {
-    return push(ref(db, path), data);
+  var newSandboxDataStore = (environmentName, db) => {
+    const clearEnvironment = () => {
+      remove(ref(db, environmentName));
+    };
+    return { ...newDataStore(environmentName, db), clearEnvironment };
   };
-  var subscribe = (path, callback) => {
-    const subscription = ref(db, path);
-    onChildAdded(subscription, (snapshot) => callback(snapshot.val()));
-  };
-
-  // src/gameData.ts
-  var GameData = class {
-    get gamePath() {
-      return `games/${this.gameId}`;
-    }
-    constructor(gameId) {
-      this.gameId = gameId || this.generateGameId();
-    }
-    subscribe(callback) {
-      subscribe(this.gamePath, callback);
-    }
-    writeData(data) {
-      writeData(this.gamePath, data);
-    }
-    generateGameId() {
-      const firstPart = Math.random() * 46656 | 0;
-      const secondPart = Math.random() * 46656 | 0;
-      const firstPartString = ("000" + firstPart.toString(36)).slice(-3);
-      const secondPartString = ("000" + secondPart.toString(36)).slice(-3);
-      return firstPartString + secondPartString;
+  var dataStore = (config2) => {
+    environment = config2.environment;
+    const app = initializeApp(config2.firebaseConfig, environment);
+    const db = getDatabase(app);
+    switch (environment) {
+      case "test":
+        return newSandboxDataStore("test", db);
+      case "production":
+        return newDataStore("production", db);
+      default:
+        return newSandboxDataStore("local", db);
     }
   };
 
   // src/index.ts
-  var gameIdSpan = document.getElementById("game-id-span");
-  var gameIdCopyButton = document.getElementById("game-id-copy");
-  var gameIdInfo = document.getElementById("game-id-info");
-  var gameStart = document.getElementById("game-start");
-  var gameIdInput = document.getElementById("game-id-input");
-  var joinButton = document.getElementById("join-button");
-  var startButton = document.getElementById("start-button");
-  var startGame = (id = null) => {
-    const game = new Game();
-    const gameData = new GameData(id);
-    const gameEngine = new GameUI(game, gameData);
-    gameIdSpan.innerText = gameData.gameId;
-    gameIdCopyButton.onclick = () => navigator.clipboard.writeText(gameData.gameId);
-    gameStart.style.display = "none";
-    gameIdInfo.style.display = "flex";
-    gameEngine.start();
+  var config = define_CONFIG_default;
+  var display = (element) => {
+    document.getElementById(element.id).classList.remove("hidden");
   };
-  startButton.onclick = (e) => {
-    e.preventDefault();
-    startGame();
+  var hide = (element) => {
+    document.getElementById(element.id).classList.add("hidden");
   };
-  joinButton.onclick = (e) => {
-    e.preventDefault();
-    const gameId = gameIdInput.value;
-    startGame(gameId);
+  var pages = {
+    GetStarted: {
+      id: "get-started",
+      navigation: [
+        { id: "get-started-button", nextPage: "MainMenu" }
+      ],
+      setup: GetStarted
+    },
+    MainMenu: {
+      id: "main-menu",
+      navigation: [
+        { id: "play", nextPage: "JoinOrStart" }
+      ],
+      setup: MainMenu
+    },
+    JoinOrStart: {
+      id: "join-or-start-game",
+      navigation: [],
+      setup: JoinOrStart
+    },
+    PlayGame: {
+      id: "play-game",
+      navigation: [],
+      setup: PlayGame
+    }
   };
-  var query = new URLSearchParams(window.location.search);
-  if (query.has("gameId")) {
-    startGame(query.get("gameId"));
-  } else {
-    gameStart.style.display = "flex";
-  }
+  var GlobalContext = {
+    pages,
+    currentUser: null,
+    gameId: null,
+    dataStore: dataStore(config)
+  };
+  setupPages();
+  navigateTo(pages.GetStarted);
 })();
 /*! Bundled license information:
 
@@ -11516,24 +11874,6 @@ firebase/app/dist/esm/index.esm.js:
   (**
    * @license
    * Copyright 2021 Google LLC
-   *
-   * Licensed under the Apache License, Version 2.0 (the "License");
-   * you may not use this file except in compliance with the License.
-   * You may obtain a copy of the License at
-   *
-   *   http://www.apache.org/licenses/LICENSE-2.0
-   *
-   * Unless required by applicable law or agreed to in writing, software
-   * distributed under the License is distributed on an "AS IS" BASIS,
-   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   * See the License for the specific language governing permissions and
-   * limitations under the License.
-   *)
-
-@firebase/database/dist/index.esm2017.js:
-  (**
-   * @license
-   * Copyright 2017 Google LLC
    *
    * Licensed under the Apache License, Version 2.0 (the "License");
    * you may not use this file except in compliance with the License.

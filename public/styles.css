@@ -8,37 +8,103 @@ body {
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    gap: 30px;
+    font-family: "Trebuchet MS", sans-serif;
+}
+
+main {
+    max-width: 90%;
+    max-height: 90%;
+}
+
+.hidden {
+    display: none;
+}
+
+
+article {
+    max-height: 100%;
+    max-width: 100%;
 }
 
 canvas {
     width: 600px;
     max-width: 100%;
     max-height: 100%;
-    display: block;
 }
 
-nav {
+li {
+    list-style: none;
+    padding: 5px;
+    box-sizing: border-box;
+    width: 100%;
+    background: #FFF2;
+}
+
+article {
     display: flex;
+    flex-direction: column;
     width: 400px;
     justify-content: center;
     gap: 20px;
 }
 
+nav {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 20px;
+}
+
+p {
+    text-align: center;
+}
+
+ul {
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-flow: column;
+    gap: 3px;
+}
+
+/*--- Inputs with floating labels ---*/
+
 input, span {
     background-color: transparent;
     color: orange;
-    padding: 10px;
-    font-size: 16px;
+    font-size: 1em;
 }
 
-input {
+label {
+    display: block;
+    position: relative;
+    height: 1.5em;
+    border-bottom: 1px solid orange;
+}
+
+input[type=text] {
     border-style: none;
     outline: none;
     width: 110px;
-    border-bottom: 1px solid orange;
-    margin-right: 10px;
 }
+
+label span {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: -1;
+    transition: 0.25s ease all;
+}
+
+input[type=text]:active ~ span,
+input[type=text]:focus ~ span,
+input[type=text]:focus-within ~ span {
+    font-size: 0.5em;
+    top: -2em;
+    text-transform: uppercase;
+}
+
+/*--- Button ---*/
 
 button {
     background-color: #FAD240;
@@ -64,7 +130,88 @@ button:not(:disabled):focus {
 }
 
 button:disabled {
-    filter: saturate(0.2) opacity(0.5);
-    -webkit-filter: saturate(0.2) opacity(0.5);
+    filter: saturate(0.75) opacity(0.5);
+    -webkit-filter: saturate(0.75) opacity(0.5);
     cursor: not-allowed;
+}
+
+/*--- Icon Buttons ---*/
+
+.icon-button {
+    padding: 4px;
+    background: none;
+    float: right;
+}
+
+.icon-button:not(:disabled):hover,
+.icon-button:not(:disabled):focus {
+    background: #EE900088;
+}
+
+button svg {
+    color: #FAD240;
+    height: 1em;
+    width: 16px;
+    vertical-align: -0.125em;
+}
+
+#add {
+    color: green;
+}
+
+#question {
+    color: blue;
+}
+
+#add use:first-child, #question use:first-child {
+    color: white;
+}
+
+svg.dual-icon use:last-child {
+    x: 50;
+    y: 50;
+    scale: 0.666;
+}
+
+/*--- Player Row ---*/
+
+li.player {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    gap: 1em;
+    padding: 0.5em 0.75em;
+
+}
+
+li.player span {
+    flex-grow: 1;
+}
+
+li.player button {
+    display: none;
+}
+
+li.player:not([invite]) .invite-friend,
+li.player[invite="pending"] .invite-pending,
+li.player[invite="accepted"] .play-game {
+    display: block;
+}
+
+
+
+.visually-hidden:not(:focus):not(:active) {
+    clip: rect(0 0 0 0);
+    clip-path: inset(100%);
+    height: 1px;
+    overflow: hidden;
+    position: absolute;
+    white-space: nowrap;
+    width: 1px;
+}
+
+#play-game {
+    height: 600px;
+    width: 600px;
+    padding: 0;
 }

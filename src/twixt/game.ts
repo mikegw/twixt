@@ -1,6 +1,5 @@
 import { Board, Position } from "./board";
-import { Color } from "./color";
-import { Player } from "./player";
+import { Color, Player } from "./player";
 import { Slot } from "./board/slot";
 import { Connection } from "./board/connection";
 

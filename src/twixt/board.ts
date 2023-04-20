@@ -1,7 +1,7 @@
 import { addVectors, sameVectors, Vector } from "./board/vector";
-import { Color } from "./color";
 import { Slot } from "./board/slot";
 import { Connection } from "./board/connection";
+import { Color } from "./player";
 
 export type Position = Vector
 

@@ -3,20 +3,29 @@ import { Canvas, Coordinates } from "./gameUI/canvas";
 
 import { Game } from "./game";
 import { Position } from "./board";
-import { subscribe, writeData } from "./sync";
 import { GameData } from "./gameData";
+import { Color } from "./player";
 
 export class GameUI {
   game: Game
   gameData: GameData
   canvas: Canvas
   renderer: Renderer
+  color: Color
+  currentPlayerSpan: HTMLSpanElement
 
-  constructor(game: Game, gameData: GameData) {
+  constructor(game: Game, gameData: GameData, player: string) {
     this.game = game
     this.gameData = gameData
     this.canvas = new Canvas()
     this.renderer = new Renderer(this.canvas, this.game.board)
+    this.currentPlayerSpan = document.getElementById('current-player')
+    const playerColorSpan = document.getElementById('player-color')
+
+    gameData.getFirstPlayer(firstPlayer => {
+      this.color = player == firstPlayer ? Color.Red : Color.Blue
+      playerColorSpan.innerText = this.color
+    })
   }
 
   start() {
@@ -32,17 +41,20 @@ export class GameUI {
     this.renderer.draw()
   }
 
-  canvasClicked(cursorPosition: Coordinates) {
+  canvasClicked = (cursorPosition: Coordinates) => {
+    if (this.game.currentPlayer.color != this.color) return
+
     const positionClicked: Position = {
       row: Math.floor(cursorPosition.y / this.slotGapSize) - BOARD_PADDING,
       column:  Math.floor(cursorPosition.x / this.slotGapSize) - BOARD_PADDING
     }
-    this.gameData.writeData(positionClicked)
+    this.gameData.write(positionClicked)
   }
 
-  private moveMade = (position: Position) => {
+  moveMade = (position: Position) => {
     this.game.placePeg(position as Position)
     this.render()
+    this.currentPlayerSpan.innerText = this.game.currentPlayer.color
   }
 
   private windowResized = () => {

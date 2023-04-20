@@ -1,7 +1,7 @@
 import { expect } from "chai";
 
-import { Game } from "../../src/game";
-import { Position } from "../../src/board";
+import { Game } from "../src/twixt/game";
+import { Position } from "../src/twixt/board";
 
 describe('Peg Placement', () => {
   it('can place a peg on the board', () => {

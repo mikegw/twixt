@@ -1,5 +1,5 @@
-import { Color } from "../color";
 import { Position } from "../board";
+import { Color } from "../player";
 
 export class Slot {
   position: Position

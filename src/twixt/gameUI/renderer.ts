@@ -1,6 +1,6 @@
 import { Board, Position } from "../board"
-import { Color } from "../color";
 import { Canvas, Coordinates } from "./canvas";
+import { Color } from "../player";
 
 const EMPTY_SLOT_RADIUS = 4
 const EMPTY_SLOT_COLOR = '#999'

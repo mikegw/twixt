@@ -1,7 +1,7 @@
-import { Color } from "../color";
 import { Slot } from "./slot";
 import { intersects, sameVectors, subtractVectors, Vector } from "./vector";
 import { Position } from "../board";
+import { Color } from "../player";
 
 export class Connection {
   color: Color

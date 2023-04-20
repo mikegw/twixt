@@ -1,8 +1,8 @@
 import { expect } from "chai";
-import { Position } from "../../src/board";
-import { Color } from "../../src/color";
-import { Slot } from "../../src/board/slot";
-import { Connection } from "../../src/board/connection";
+import { Position } from "../src/twixt/board";
+import { Slot } from "../src/twixt/board/slot";
+import { Connection } from "../src/twixt/board/connection";
+import { Color } from "../src/twixt/player";
 
 function buildConnection(position1: Position, position2: Position): Connection {
   return new Connection(Color.Red, [new Slot(position1), new Slot(position2)])

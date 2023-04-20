@@ -1,4 +1,4 @@
-import { Game } from "../../src/game";
+import { Game } from "../src/twixt/game";
 import { expect } from "chai";
 
 describe('Move Parsing', () => {
