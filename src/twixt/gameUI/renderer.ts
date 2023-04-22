@@ -2,17 +2,19 @@ import { Board, Position } from "../board"
 import { Canvas, Coordinates } from "./canvas";
 import { Color } from "../player";
 
-const EMPTY_SLOT_RADIUS = 4
+const PEG_RADIUS = 0.00525
+const EMPTY_SLOT_RADIUS = 0.003
+const CONNECTION_WIDTH = 0.004
+const BOUNDARY_WIDTH = 0.002
+
 const EMPTY_SLOT_COLOR = '#999'
 
-const PEG_RADIUS = 7
 const COLORS: Record<Color, string> = {
   'RED': '#F72595',
   'BLUE': '#4682F4'
 }
 
-const CONNECTION_WIDTH = 5
-const BOUNDARY_WIDTH = 3
+
 
 export const BOARD_PADDING = 1
 
@@ -52,7 +54,7 @@ export class Renderer {
     for (let slot of this.board.slots) {
       this.canvas.drawCircle(
         this.positionToCoordinates(slot.position),
-        EMPTY_SLOT_RADIUS,
+        this.emptySlotRadius,
         EMPTY_SLOT_COLOR,
         true
       )
@@ -68,17 +70,17 @@ export class Renderer {
     const bottomLeft = { x: min, y: max }
     const bottomRight = { x: max, y: max }
 
-    this.canvas.drawLine(COLORS[Color.Red], BOUNDARY_WIDTH, topLeft, topRight, true)
-    this.canvas.drawLine(COLORS[Color.Red], BOUNDARY_WIDTH, bottomLeft, bottomRight, true)
-    this.canvas.drawLine(COLORS[Color.Blue], BOUNDARY_WIDTH, topLeft, bottomLeft, true)
-    this.canvas.drawLine(COLORS[Color.Blue], BOUNDARY_WIDTH, topRight, bottomRight, true)
+    this.canvas.drawLine(COLORS[Color.Red], this.boundaryWidth, topLeft, topRight, true)
+    this.canvas.drawLine(COLORS[Color.Red], this.boundaryWidth, bottomLeft, bottomRight, true)
+    this.canvas.drawLine(COLORS[Color.Blue], this.boundaryWidth, topLeft, bottomLeft, true)
+    this.canvas.drawLine(COLORS[Color.Blue], this.boundaryWidth, topRight, bottomRight, true)
   }
 
   private drawConnections() {
     for (let connection of this.board.connections) {
       this.canvas.drawLine(
         COLORS[connection.color],
-        CONNECTION_WIDTH,
+        this.connectionWidth,
         this.positionToCoordinates(connection.slots[0].position),
         this.positionToCoordinates(connection.slots[1].position)
       )
@@ -91,7 +93,7 @@ export class Renderer {
       const slotCoordinates = this.positionToCoordinates(slot.position)
       this.canvas.drawCircle(
         slotCoordinates,
-        PEG_RADIUS,
+        this.pegRadius,
         COLORS[slot.color]
       )
     }
@@ -119,5 +121,21 @@ export class Renderer {
   private drawLabel(label: string , position: Position) {
     const coordinates = this.positionToCoordinates(position)
     this.canvas.drawText(LABEL_COLOR, label, coordinates, true)
+  }
+
+  private get emptySlotRadius() {
+    return Math.ceil(EMPTY_SLOT_RADIUS * this.canvas.size)
+  }
+
+  private get pegRadius() {
+    return Math.ceil(PEG_RADIUS * this.canvas.size)
+  }
+
+  private get connectionWidth() {
+    return Math.ceil(CONNECTION_WIDTH * this.canvas.size)
+  }
+
+  private get boundaryWidth() {
+    return Math.ceil(BOUNDARY_WIDTH * this.canvas.size)
   }
 }

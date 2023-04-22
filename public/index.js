@@ -1,6 +1,6 @@
 (() => {
   // <define:CONFIG>
-  var define_CONFIG_default = { firebaseConfig: { apiKey: "AIzaSyBiVEerDSeDFrUaTn8nbY58WAuPr6XtbcQ", authDomain: "mw-twixt.firebaseapp.com", databaseURL: "https://mw-twixt-default-rtdb.firebaseio.com", projectId: "mw-twixt", storageBucket: "mw-twixt.appspot.com", messagingSenderId: "1048357586138", appId: "1:1048357586138:web:652cab4962c73e83e5d1e3", measurementId: "G-2DV7T5RWJB" }, environment: "local" };
+  var define_CONFIG_default = { firebaseConfig: { apiKey: "AIzaSyBiVEerDSeDFrUaTn8nbY58WAuPr6XtbcQ", authDomain: "mw-twixt.firebaseapp.com", databaseURL: "https://mw-twixt-default-rtdb.firebaseio.com", projectId: "mw-twixt", storageBucket: "mw-twixt.appspot.com", messagingSenderId: "1048357586138", appId: "1:1048357586138:web:652cab4962c73e83e5d1e3", measurementId: "G-2DV7T5RWJB" }, environment: "production" };
 
   // src/page.ts
   var isNavigationButton = (button) => "nextPage" in button;
@@ -421,15 +421,15 @@
   };
 
   // src/twixt/gameUI/renderer.ts
-  var EMPTY_SLOT_RADIUS = 4;
+  var PEG_RADIUS = 525e-5;
+  var EMPTY_SLOT_RADIUS = 3e-3;
+  var CONNECTION_WIDTH = 4e-3;
+  var BOUNDARY_WIDTH = 2e-3;
   var EMPTY_SLOT_COLOR = "#999";
-  var PEG_RADIUS = 7;
   var COLORS = {
     "RED": "#F72595",
     "BLUE": "#4682F4"
   };
-  var CONNECTION_WIDTH = 5;
-  var BOUNDARY_WIDTH = 3;
   var BOARD_PADDING = 1;
   var LABEL_COLOR = "#FAD240";
   var Renderer = class {
@@ -457,7 +457,7 @@
       for (let slot of this.board.slots) {
         this.canvas.drawCircle(
           this.positionToCoordinates(slot.position),
-          EMPTY_SLOT_RADIUS,
+          this.emptySlotRadius,
           EMPTY_SLOT_COLOR,
           true
         );
@@ -470,16 +470,16 @@
       const topRight = { x: max, y: min };
       const bottomLeft = { x: min, y: max };
       const bottomRight = { x: max, y: max };
-      this.canvas.drawLine(COLORS["RED" /* Red */], BOUNDARY_WIDTH, topLeft, topRight, true);
-      this.canvas.drawLine(COLORS["RED" /* Red */], BOUNDARY_WIDTH, bottomLeft, bottomRight, true);
-      this.canvas.drawLine(COLORS["BLUE" /* Blue */], BOUNDARY_WIDTH, topLeft, bottomLeft, true);
-      this.canvas.drawLine(COLORS["BLUE" /* Blue */], BOUNDARY_WIDTH, topRight, bottomRight, true);
+      this.canvas.drawLine(COLORS["RED" /* Red */], this.boundaryWidth, topLeft, topRight, true);
+      this.canvas.drawLine(COLORS["RED" /* Red */], this.boundaryWidth, bottomLeft, bottomRight, true);
+      this.canvas.drawLine(COLORS["BLUE" /* Blue */], this.boundaryWidth, topLeft, bottomLeft, true);
+      this.canvas.drawLine(COLORS["BLUE" /* Blue */], this.boundaryWidth, topRight, bottomRight, true);
     }
     drawConnections() {
       for (let connection of this.board.connections) {
         this.canvas.drawLine(
           COLORS[connection.color],
-          CONNECTION_WIDTH,
+          this.connectionWidth,
           this.positionToCoordinates(connection.slots[0].position),
           this.positionToCoordinates(connection.slots[1].position)
         );
@@ -492,7 +492,7 @@
         const slotCoordinates = this.positionToCoordinates(slot.position);
         this.canvas.drawCircle(
           slotCoordinates,
-          PEG_RADIUS,
+          this.pegRadius,
           COLORS[slot.color]
         );
       }
@@ -518,7 +518,16 @@
       this.canvas.drawText(LABEL_COLOR, label, coordinates, true);
     }
     get emptySlotRadius() {
-      return EMPTY_SLOT_RADIUS;
+      return Math.ceil(EMPTY_SLOT_RADIUS * this.canvas.size);
+    }
+    get pegRadius() {
+      return Math.ceil(PEG_RADIUS * this.canvas.size);
+    }
+    get connectionWidth() {
+      return Math.ceil(CONNECTION_WIDTH * this.canvas.size);
+    }
+    get boundaryWidth() {
+      return Math.ceil(BOUNDARY_WIDTH * this.canvas.size);
     }
   };
 
@@ -12143,4 +12152,3 @@ firebase/app/dist/esm/index.esm.js:
    * limitations under the License.
    *)
 */
-//# sourceMappingURL=index.js.map
