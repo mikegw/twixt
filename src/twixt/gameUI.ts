@@ -48,6 +48,8 @@ export class GameUI {
       row: Math.floor(cursorPosition.y / this.slotGapSize) - BOARD_PADDING,
       column:  Math.floor(cursorPosition.x / this.slotGapSize) - BOARD_PADDING
     }
+
+    console.log(positionClicked)
     this.gameData.write(positionClicked)
   }
 

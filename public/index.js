@@ -1,6 +1,6 @@
 (() => {
   // <define:CONFIG>
-  var define_CONFIG_default = { firebaseConfig: { apiKey: "AIzaSyBiVEerDSeDFrUaTn8nbY58WAuPr6XtbcQ", authDomain: "mw-twixt.firebaseapp.com", databaseURL: "https://mw-twixt-default-rtdb.firebaseio.com", projectId: "mw-twixt", storageBucket: "mw-twixt.appspot.com", messagingSenderId: "1048357586138", appId: "1:1048357586138:web:652cab4962c73e83e5d1e3", measurementId: "G-2DV7T5RWJB" }, environment: "production" };
+  var define_CONFIG_default = { firebaseConfig: { apiKey: "AIzaSyBiVEerDSeDFrUaTn8nbY58WAuPr6XtbcQ", authDomain: "mw-twixt.firebaseapp.com", databaseURL: "https://mw-twixt-default-rtdb.firebaseio.com", projectId: "mw-twixt", storageBucket: "mw-twixt.appspot.com", messagingSenderId: "1048357586138", appId: "1:1048357586138:web:652cab4962c73e83e5d1e3", measurementId: "G-2DV7T5RWJB" }, environment: "local" };
 
   // src/page.ts
   var isNavigationButton = (button) => "nextPage" in button;
@@ -517,6 +517,9 @@
       const coordinates = this.positionToCoordinates(position);
       this.canvas.drawText(LABEL_COLOR, label, coordinates, true);
     }
+    get emptySlotRadius() {
+      return EMPTY_SLOT_RADIUS;
+    }
   };
 
   // src/twixt/gameUI/canvas.ts
@@ -525,13 +528,17 @@
       this.canvas = document.getElementById("game-canvas");
       this.ctx = this.canvas.getContext("2d");
       this.setDimensions = () => {
-        this.canvas.width = Math.min(this.canvas.offsetHeight, this.canvas.offsetWidth);
-        this.canvas.height = Math.min(this.canvas.offsetHeight, this.canvas.offsetWidth);
+        const minSize = Math.min(this.canvas.offsetHeight, this.canvas.offsetWidth);
+        this.canvas.style.height = `${minSize}px`;
+        this.canvas.style.width = `${minSize}px`;
+        this.canvas.width = minSize * this.pixelRatio;
+        this.canvas.height = minSize * this.pixelRatio;
         this.offscreenCanvas.width = this.canvas.width;
         this.offscreenCanvas.height = this.canvas.height;
       };
       this.offscreenCanvas = document.createElement("canvas");
       this.offscreenCtx = this.offscreenCanvas.getContext("2d");
+      this.pixelRatio = window.devicePixelRatio;
     }
     get size() {
       return Math.min(this.canvas.width, this.canvas.height);
@@ -546,13 +553,13 @@
       const ctx = prerender ? this.offscreenCtx : this.ctx;
       ctx.fillStyle = color;
       ctx.beginPath();
-      ctx.arc(coordinates.x, coordinates.y, radius, 0, 2 * Math.PI);
+      ctx.arc(coordinates.x, coordinates.y, radius * this.pixelRatio, 0, 2 * Math.PI);
       ctx.fill();
     }
     drawLine(color, width, from, to, prerender) {
       const ctx = prerender ? this.offscreenCtx : this.ctx;
       ctx.strokeStyle = color;
-      ctx.lineWidth = width;
+      ctx.lineWidth = width * this.pixelRatio;
       ctx.lineCap = "round";
       ctx.beginPath();
       ctx.moveTo(from.x, from.y);
@@ -562,7 +569,7 @@
     drawText(color, text, position, prerender = false) {
       const ctx = prerender ? this.offscreenCtx : this.ctx;
       ctx.fillStyle = color;
-      ctx.font = "16px Trebuchet MS";
+      ctx.font = `${16 * this.pixelRatio}px Trebuchet MS`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillText(text, position.x, position.y);
@@ -571,9 +578,10 @@
       this.canvas.addEventListener("click", (event) => {
         const rect = this.canvas.getBoundingClientRect();
         const cursorPosition = {
-          x: event.clientX - rect.left,
-          y: event.clientY - rect.top
+          x: (event.clientX - rect.left) * this.pixelRatio,
+          y: (event.clientY - rect.top) * this.pixelRatio
         };
+        console.log(this.pixelRatio, this.size, cursorPosition);
         callback(cursorPosition);
       });
     }
@@ -589,6 +597,7 @@
           row: Math.floor(cursorPosition.y / this.slotGapSize) - BOARD_PADDING,
           column: Math.floor(cursorPosition.x / this.slotGapSize) - BOARD_PADDING
         };
+        console.log(positionClicked);
         this.gameData.write(positionClicked);
       };
       this.moveMade = (position) => {
@@ -12134,3 +12143,4 @@ firebase/app/dist/esm/index.esm.js:
    * limitations under the License.
    *)
 */
+//# sourceMappingURL=index.js.map

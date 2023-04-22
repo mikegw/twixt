@@ -8,15 +8,23 @@ export class Canvas {
   ctx = this.canvas.getContext('2d')
   offscreenCanvas: HTMLCanvasElement
   offscreenCtx: CanvasRenderingContext2D
+  pixelRatio: number
 
   constructor() {
     this.offscreenCanvas = document.createElement("canvas")
     this.offscreenCtx = this.offscreenCanvas.getContext("2d")
+    this.pixelRatio = window.devicePixelRatio;
   }
 
   setDimensions = () => {
-    this.canvas.width = Math.min(this.canvas.offsetHeight, this.canvas.offsetWidth)
-    this.canvas.height = Math.min(this.canvas.offsetHeight, this.canvas.offsetWidth)
+    // Optionally print it to the console (if interested).
+    const minSize = Math.min(this.canvas.offsetHeight, this.canvas.offsetWidth)
+
+    this.canvas.style.height = `${minSize}px`
+    this.canvas.style.width = `${minSize}px`
+
+    this.canvas.width = minSize * this.pixelRatio
+    this.canvas.height = minSize * this.pixelRatio
 
     this.offscreenCanvas.width = this.canvas.width;
     this.offscreenCanvas.height = this.canvas.height;
@@ -39,7 +47,7 @@ export class Canvas {
 
     ctx.fillStyle = color
     ctx.beginPath()
-    ctx.arc(coordinates.x, coordinates.y, radius, 0, 2 * Math.PI)
+    ctx.arc(coordinates.x, coordinates.y, radius * this.pixelRatio, 0, 2 * Math.PI)
     ctx.fill()
   }
 
@@ -47,7 +55,7 @@ export class Canvas {
     const ctx = prerender ? this.offscreenCtx : this.ctx
 
     ctx.strokeStyle = color
-    ctx.lineWidth = width
+    ctx.lineWidth = width * this.pixelRatio
     ctx.lineCap = "round"
     ctx.beginPath()
     ctx.moveTo(from.x, from.y)
@@ -59,7 +67,7 @@ export class Canvas {
     const ctx = prerender ? this.offscreenCtx : this.ctx
 
     ctx.fillStyle = color
-    ctx.font = "16px Trebuchet MS"
+    ctx.font = `${16 * this.pixelRatio}px Trebuchet MS`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
 
@@ -70,9 +78,10 @@ export class Canvas {
     this.canvas.addEventListener("click", (event) => {
       const rect = this.canvas.getBoundingClientRect()
       const cursorPosition: Coordinates  = {
-        x: event.clientX - rect.left,
-        y: event.clientY - rect.top
+        x: (event.clientX - rect.left) * this.pixelRatio,
+        y: (event.clientY - rect.top)  * this.pixelRatio
       }
+      console.log(this.pixelRatio, this.size, cursorPosition)
 
       callback(cursorPosition)
     })
