@@ -7,7 +7,6 @@ let environment: Environment = 'local'
 
 const newDataStore = (environment: string, db: Database): DataStore => {
   const reference = (path: string): DatabaseReference => {
-    console.log(db)
     return ref(db, [environment, path].join('/'))
   }
 

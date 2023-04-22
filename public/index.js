@@ -1,6 +1,6 @@
 (() => {
   // <define:CONFIG>
-  var define_CONFIG_default = { firebaseConfig: { apiKey: "AIzaSyBiVEerDSeDFrUaTn8nbY58WAuPr6XtbcQ", authDomain: "mw-twixt.firebaseapp.com", databaseURL: "https://mw-twixt-default-rtdb.firebaseio.com", projectId: "mw-twixt", storageBucket: "mw-twixt.appspot.com", messagingSenderId: "1048357586138", appId: "1:1048357586138:web:652cab4962c73e83e5d1e3", measurementId: "G-2DV7T5RWJB" }, environment: "production" };
+  var define_CONFIG_default = { firebaseConfig: { apiKey: "AIzaSyBiVEerDSeDFrUaTn8nbY58WAuPr6XtbcQ", authDomain: "mw-twixt.firebaseapp.com", databaseURL: "https://mw-twixt-default-rtdb.firebaseio.com", projectId: "mw-twixt", storageBucket: "mw-twixt.appspot.com", messagingSenderId: "1048357586138", appId: "1:1048357586138:web:652cab4962c73e83e5d1e3", measurementId: "G-2DV7T5RWJB" }, environment: "local" };
 
   // src/page.ts
   var isNavigationButton = (button) => "nextPage" in button;
@@ -416,7 +416,6 @@
           column: rawRow.charCodeAt(0) - "A".charCodeAt(0),
           row: Number(rawColumn)
         };
-        console.log(this.placePeg(position));
       }
     }
   };
@@ -11353,7 +11352,6 @@
   var environment = "local";
   var newDataStore = (environment2, db) => {
     const reference = (path) => {
-      console.log(db);
       return ref(db, [environment2, path].join("/"));
     };
     const read = (path, callback) => {
@@ -12136,3 +12134,4 @@ firebase/app/dist/esm/index.esm.js:
    * limitations under the License.
    *)
 */
+//# sourceMappingURL=index.js.map

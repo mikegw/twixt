@@ -51,7 +51,6 @@ export class Game {
         column: rawRow.charCodeAt(0) - 'A'.charCodeAt(0),
         row: Number(rawColumn)
       }
-      console.log(this.placePeg(position))
     }
   }
 }
