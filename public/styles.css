@@ -98,7 +98,8 @@ label span {
 
 input[type=text]:active ~ span,
 input[type=text]:focus ~ span,
-input[type=text]:focus-within ~ span {
+input[type=text]:focus-within ~ span,
+input[type=text]:not(:placeholder-shown) ~ span {
     font-size: 0.5em;
     top: -2em;
     text-transform: uppercase;
