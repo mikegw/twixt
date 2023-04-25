@@ -5,7 +5,7 @@ import { Color } from "./player";
 
 export type Position = Vector
 
-const BOARD_SIZE = 18
+export const BOARD_SIZE = 18
 
 export class Board {
   private static neighborDiffs: Vector[] = [

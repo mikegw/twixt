@@ -36,17 +36,19 @@
 //   }
 // }
 
-declare namespace Cypress {
-  interface Chainable {
-    loginAs(username: string): Chainable
-  }
-}
+import { UsernameList } from "../../src/usernameList";
+import { GameInProgress, User } from "../../src/user";
+import { parseMove, parseMoves } from "../../src/twixt/parse";
+import { BOARD_SIZE, Position } from "../../src/twixt/board";
+import { BOARD_PADDING, COLORS } from "../../src/twixt/gameUI/renderer";
+import { Color } from "../../src/twixt/player";
+import { GameData } from "../../src/twixt/gameData";
 
 Cypress.Commands.add('loginAs', (username) => {
   cy.visit('/')
 
   cy.get('input[name=username]')
-  .type('Mike')
+  .type(username)
 
   cy.get('button').contains('Get Started')
   .click()
@@ -57,4 +59,115 @@ Cypress.Commands.add('loginAs', (username) => {
   .click()
 
   cy.get('h1').contains('Join or Start Game').should('be.visible')
+})
+
+Cypress.Commands.add('acceptInviteFrom', (player) => {
+  cy.get('.player').contains(player)
+  .get('.invite-pending').should('be.visible')
+  .click()
+})
+
+Cypress.Commands.add('startGameWith', (player) => {
+  cy.get('.player').contains(player)
+  .get('.play-game').should('be.visible')
+  .click()
+})
+
+Cypress.Commands.add('startGameBetween', function(name1, name2) {
+  const userNames = new UsernameList(this.dataStore)
+  userNames.addUser(name2)
+  const player2 = new User({ name: name2 }, this.dataStore)
+  player2.invite({ name: name1 })
+
+  cy.loginAs(name1)
+  cy.acceptInviteFrom(name2)
+  cy.startGameWith(name2)
+})
+
+const positionToCoordinates = (canvas: HTMLCanvasElement, position: Position) => {
+  const size = canvas.getBoundingClientRect().width
+  const slotGapSize = size / (BOARD_SIZE + 2 * BOARD_PADDING)
+
+  const coordinates = {
+    x: (position.column + BOARD_PADDING + 0.5) * slotGapSize,
+    y: (position.row + BOARD_PADDING + 0.5) * slotGapSize
+  }
+  console.log(`Coordinates for { row: ${position.row}, column: ${position.column} }: { x: ${coordinates.x}, y: ${coordinates.y} }`)
+
+  return coordinates
+}
+
+Cypress.Commands.add('playMoves', function(opponentName, moves) {
+  const positions = parseMoves(moves)
+
+  const receiveGame = new Promise<GameInProgress>(resolve => {
+    this.dataStore.read(User.gamesInProgressPath(opponentName), (games: {[key: string]: GameInProgress}) => {
+      resolve(Object.values(games)[0])
+    })
+  })
+
+  return (cy.wrap(receiveGame) as Cypress.Chainable<GameInProgress>)
+    .then((gameInProgress: GameInProgress) => {
+      const gameData =
+      cy.wrap(new GameData(this.dataStore, gameInProgress.gameId)).as('gameData')
+
+      cy.get('#player-color')
+        .contains(/RED|BLUE/)
+        .invoke('text')
+        .as('playerColor')
+
+      return cy.get<HTMLCanvasElement>('#game-canvas')
+        .then(canvas => {
+          console.log('playing moves...')
+          for (let position of positions) {
+            console.log('playing move')
+            cy.get('#current-player')
+              .contains(/RED|BLUE/)
+              .invoke('text')
+              .as('currentPlayerColor')
+              .then(() => {
+                const opponentColor = this.playerColor == Color.Red ? Color.Blue : Color.Red
+
+                console.log(this.currentPlayerColor, this.playerColor)
+                if (this.currentPlayerColor == this.playerColor) {
+                  const { x, y } = positionToCoordinates(canvas[0], position)
+                  cy.get('#game-canvas').click(x, y)
+                } else {
+                  this.gameData.write(position)
+                }
+              })
+          }
+        })
+    })
+})
+
+Cypress.Commands.add('pegAt', (rawPosition: string) => {
+  const position = parseMove(rawPosition)
+
+  return cy.get<HTMLCanvasElement>('#game-canvas')
+    .then($canvas => {
+      const canvas = $canvas[0]
+      const ctx = canvas.getContext('2d')
+
+
+      const { x, y} = positionToCoordinates(canvas, position)
+      const pixel = ctx.getImageData(x * window.devicePixelRatio, y * window.devicePixelRatio, 1, 1).data;
+
+      const [r, g, b] = Array.from(pixel.slice(0,3))
+      const hex = ((r << 16) | (g << 8) | b).toString(16)
+      const colorCode = "#" + ("000000" + hex).slice(-6).toUpperCase()
+
+      let color: Color
+
+      switch(colorCode) {
+        case COLORS[Color.Red]:
+          color = Color.Red
+          break;
+        case COLORS[Color.Blue]:
+          color = Color.Blue
+          break;
+      }
+
+      return color
+    })
 })

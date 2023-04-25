@@ -32,39 +32,48 @@
     </svg>
 
     <main>
-      <article id="get-started" class="hidden">
+      <form id="get-started" class="page hidden">
+
         <label>
-          <input type="text" name="username" placeholder=" ">
+          <input type="text" name="username" placeholder=" " autofocus>
           <span>User name</span>
         </label>
 
         <button class="nav-button" id="get-started-button">Get Started</button>
-      </article>
+      </form>
 
-      <article id="main-menu" class="hidden">
+      <article id="main-menu" class="page hidden">
         <h1>Main Menu</h1>
         <nav>
           <button class="nav-button" id="play">Play</button>
-          <button class="nav-button" id="learn">Learn</button>
+          <button class="nav-button" id="learn" onclick="window.location.href = 'https://en.wikipedia.org/wiki/TwixT#Rules'">Learn</button>
           <button class="nav-button" id="settings">Settings</button>
         </nav>
       </article>
 
-      <article id="join-or-start-game" class="hidden">
+      <article id="join-or-start-game" class="page hidden">
+        <button id="back-to-main-menu" class="icon-button back-button">
+          <i class="fa-solid fa-circle-arrow-left fa-xl"></i>
+        </button>
+
         <h1>Join or Start Game</h1>
-        <nav>
-          <button class="nav-button" id="add-friend">Add Friend</button>
-          <button class="nav-button" id="join-random">Random Player</button>
-        </nav>
+<!--        <nav>-->
+<!--          <button class="nav-button" id="add-friend">Add Friend</button>-->
+<!--          <button class="nav-button" id="join-random">Random Player</button>-->
+<!--        </nav>-->
 
         <ul id="users"></ul>
       </article>
 
-      <article id="play-game" class="hidden">
+      <article id="play-game" class="page hidden">
+        <button id="back-to-join-or-start" class="icon-button back-button">
+          <i class="fa-solid fa-circle-arrow-left fa-xl"></i>
+        </button>
+
         <canvas id="game-canvas" width=800 height=800></canvas>
         <section>
           <p>You are <span id="player-color"></span></p>
-          <p><span id="current-player"></span> to move</p>
+          <p id="game-status"><span id="current-player"></span> <span id="player-status">to move</span></p>
         </section>
       </article>
     </main>
@@ -82,8 +91,7 @@
       </button>
 
       <button class="icon-button invite-pending">
-        <svg class="dual-icon" viewBox="0 0 100 100">
-          <use xlink:href="#play"></use>
+        <svg viewBox="0 0 100 100">
           <use xlink:href="#question"></use>
         </svg>
       </button>

@@ -17,11 +17,11 @@ main {
 }
 
 .hidden {
-    display: none;
+    display: none !important;
 }
 
 
-article {
+.page {
     max-height: 100%;
     max-width: 100%;
 }
@@ -39,7 +39,7 @@ li {
     background: #FFF2;
 }
 
-article {
+.page {
     display: flex;
     flex-direction: column;
     width: 400px;
@@ -130,8 +130,8 @@ button:not(:disabled):focus {
 }
 
 button:disabled {
-    filter: saturate(0.75) opacity(0.5);
-    -webkit-filter: saturate(0.75) opacity(0.5);
+    /*filter: saturate(0.75) opacity(0.5);*/
+    /*-webkit-filter: saturate(0.75) opacity(0.5);*/
     cursor: not-allowed;
 }
 
@@ -145,14 +145,19 @@ button:disabled {
 
 .icon-button:not(:disabled):hover,
 .icon-button:not(:disabled):focus {
-    background: #EE900088;
+    background: none;
+    box-shadow: none;
 }
-
 button svg {
     color: #FAD240;
     height: 1em;
     width: 16px;
     vertical-align: -0.125em;
+}
+
+.icon-button:not(:disabled):hover svg,
+.icon-button:not(:disabled):focus svg {
+    color: #EE9000;
 }
 
 #add {
@@ -168,9 +173,9 @@ button svg {
 }
 
 svg.dual-icon use:last-child {
-    x: 50;
-    y: 50;
-    scale: 0.666;
+    x: 40;
+    y: 40;
+    scale: 0.7;
 }
 
 /*--- Player Row ---*/
@@ -214,4 +219,17 @@ li.player[invite="accepted"] .play-game {
     height: 800px;
     width: 800px;
     padding: 0;
+}
+
+.back-button {
+    position: fixed;
+    top: 1em;
+    left: 1em;
+    height: 2em;
+    width: 2em;
+}
+
+.back-button svg {
+    height: 1.5em;
+    width: 1.5em;
 }

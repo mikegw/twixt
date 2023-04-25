@@ -2,34 +2,6 @@
   // <define:CONFIG>
   var define_CONFIG_default = { firebaseConfig: { apiKey: "AIzaSyBiVEerDSeDFrUaTn8nbY58WAuPr6XtbcQ", authDomain: "mw-twixt.firebaseapp.com", databaseURL: "https://mw-twixt-default-rtdb.firebaseio.com", projectId: "mw-twixt", storageBucket: "mw-twixt.appspot.com", messagingSenderId: "1048357586138", appId: "1:1048357586138:web:652cab4962c73e83e5d1e3", measurementId: "G-2DV7T5RWJB" }, environment: "production" };
 
-  // src/page.ts
-  var isNavigationButton = (button) => "nextPage" in button;
-  var pageNames = ["GetStarted", "MainMenu", "JoinOrStart", "PlayGame"];
-  var activePage;
-  var navigateTo = (page) => {
-    if (activePage)
-      hide(activePage);
-    activePage = page;
-    page.setup();
-    display(page);
-  };
-  var addNavigation = (button) => {
-    const nextPage = GlobalContext.pages[button.nextPage];
-    const buttonHTMLElement = document.getElementById(button.id);
-    buttonHTMLElement.addEventListener("click", (e) => {
-      e.preventDefault();
-      navigateTo(nextPage);
-    });
-  };
-  var setupPages = () => {
-    for (let pageName of pageNames) {
-      const page = GlobalContext.pages[pageName];
-      const navigationButtons = page.navigation.filter(isNavigationButton);
-      for (let button of navigationButtons)
-        addNavigation(button);
-    }
-  };
-
   // src/twixt/gameData.ts
   function isPosition(data) {
     return "row" in data && "column" in data;
@@ -185,7 +157,7 @@
       this.playGameButton.addEventListener("click", (e) => {
         e.preventDefault();
         GlobalContext.gameId = this.element.attributes.getNamedItem("game-id").value;
-        navigateTo(GlobalContext.pages.PlayGame);
+        navigateTo(Pages.PlayGame);
       });
     }
   };
@@ -235,11 +207,14 @@
   };
 
   // src/pages/joinOrStart.ts
-  function JoinOrStart() {
+  var userList;
+  var JoinOrStart = () => {
+    if (userList)
+      return;
     const userListElement = document.getElementById("users");
     const usernames = new UsernameList(GlobalContext.dataStore);
-    new UserList(userListElement, usernames);
-  }
+    userList = new UserList(userListElement, usernames);
+  };
 
   // src/twixt/board/vector.ts
   var addVectors = (v1, v2) => {
@@ -378,6 +353,20 @@
     { row: -2, column: -1 }
   ];
 
+  // src/twixt/parse.ts
+  var parseMoves = (rawMovesString) => {
+    const rawMoves = rawMovesString.split(",");
+    return rawMoves.map(parseMove);
+  };
+  var parseMove = (rawMove) => {
+    const rawColumn = rawMove[0];
+    const rawRow = rawMove.substring(1);
+    return {
+      row: Number(rawRow) - 1,
+      column: rawColumn.charCodeAt(0) - "A".charCodeAt(0)
+    };
+  };
+
   // src/twixt/game.ts
   var Game = class {
     constructor() {
@@ -388,10 +377,21 @@
     get currentPlayer() {
       return this.players[this.currentPlayerIndex];
     }
+    get winner() {
+      const slotsToCheck = this.board.slots.filter((slot) => slot.isOccupied);
+      const winningSlot = slotsToCheck.find((slot) => slot.isConnectedToStart && slot.isConnectedToEnd);
+      return winningSlot ? winningSlot.color : null;
+    }
     placePeg(position) {
       const slot = this.board.place(this.currentPlayer.color, position);
       if (!slot)
         return { slot, connectionsAdded: [] };
+      if (position.row == 0 && this.currentPlayer.color == "RED" /* Red */ || position.column == 0 && this.currentPlayer.color == "BLUE" /* Blue */) {
+        slot.isConnectedToStart = true;
+      }
+      if (position.row == this.board.size - 1 && this.currentPlayer.color == "RED" /* Red */ || position.column == this.board.size - 1 && this.currentPlayer.color == "BLUE" /* Blue */) {
+        slot.isConnectedToEnd = true;
+      }
       const connections = this.addConnections(position, slot);
       this.endTurn();
       return { slot, connectionsAdded: connections };
@@ -400,6 +400,24 @@
       const neighboringSlots = this.board.neighboringSlots(position);
       const neighboringSlotsWithColor = neighboringSlots.filter((slot2) => slot2.color == this.currentPlayer.color);
       const connections = neighboringSlotsWithColor.map((neighbor) => this.connect(neighbor, slot));
+      if (neighboringSlotsWithColor.some((slot2) => slot2.isConnectedToStart)) {
+        const slotsToConnect = [this.board.slotAt(position)];
+        while (slotsToConnect.length > 0) {
+          const slotToConnect = slotsToConnect.shift();
+          slotToConnect.isConnectedToStart = true;
+          const neighboringSlotsToConnect = this.board.neighboringSlots(slotToConnect.position).filter((slot2) => slot2.color == this.currentPlayer.color).filter((slot2) => !slot2.isConnectedToStart);
+          slotsToConnect.push(...neighboringSlotsToConnect);
+        }
+      }
+      if (neighboringSlotsWithColor.some((slot2) => slot2.isConnectedToEnd)) {
+        const slotsToConnect = [this.board.slotAt(position)];
+        while (slotsToConnect.length > 0) {
+          const slotToConnect = slotsToConnect.shift();
+          slotToConnect.isConnectedToEnd = true;
+          const neighboringSlotsToConnect = this.board.neighboringSlots(slotToConnect.position).filter((slot2) => slot2.color == this.currentPlayer.color).filter((slot2) => !slot2.isConnectedToEnd);
+          slotsToConnect.push(...neighboringSlotsToConnect);
+        }
+      }
       return connections.filter(Boolean);
     }
     connect(slot1, slot2) {
@@ -408,15 +426,10 @@
     endTurn() {
       this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length;
     }
-    parse(moves) {
-      for (let move of moves.split(",")) {
-        const rawColumn = move[0];
-        const rawRow = move.substring(1);
-        const position = {
-          column: rawRow.charCodeAt(0) - "A".charCodeAt(0),
-          row: Number(rawColumn)
-        };
-      }
+    parse(rawMoves) {
+      const positions = parseMoves(rawMoves);
+      for (let position of positions)
+        this.placePeg(position);
     }
   };
 
@@ -504,11 +517,11 @@
       };
     }
     drawLabels() {
-      for (let index = 1; index < this.board.size - 1; index++) {
-        const columnLabel = String.fromCharCode(index + "A".charCodeAt(0) - 1);
+      for (let index = 0; index < this.board.size; index++) {
+        const columnLabel = String.fromCharCode(index + "A".charCodeAt(0));
         this.drawLabel(columnLabel, { row: -1, column: index });
         this.drawLabel(columnLabel, { row: this.board.size, column: index });
-        const rowLabel = index.toString();
+        const rowLabel = (index + 1).toString();
         this.drawLabel(rowLabel, { row: index, column: -1 });
         this.drawLabel(rowLabel, { row: index, column: this.board.size });
       }
@@ -610,9 +623,14 @@
         this.gameData.write(positionClicked);
       };
       this.moveMade = (position) => {
+        console.debug(`Move made by ${this.game.currentPlayer.color}: { row: ${position.row}, column: ${position.column} }`);
         this.game.placePeg(position);
         this.render();
-        this.currentPlayerSpan.innerText = this.game.currentPlayer.color;
+        if (this.game.winner) {
+          this.playerStatusSpan.innerText = "wins!";
+        } else {
+          this.currentPlayerSpan.innerText = this.game.currentPlayer.color;
+        }
       };
       this.windowResized = () => {
         this.canvas.setDimensions();
@@ -624,10 +642,12 @@
       this.canvas = new Canvas();
       this.renderer = new Renderer(this.canvas, this.game.board);
       this.currentPlayerSpan = document.getElementById("current-player");
+      this.playerStatusSpan = document.getElementById("player-status");
       const playerColorSpan = document.getElementById("player-color");
       gameData.getFirstPlayer((firstPlayer) => {
         this.color = player == firstPlayer ? "RED" /* Red */ : "BLUE" /* Blue */;
         playerColorSpan.innerText = this.color;
+        this.currentPlayerSpan.innerText = "RED" /* Red */;
       });
     }
     start() {
@@ -653,6 +673,7 @@
     const gameData = new GameData(dataStore2, id);
     const gameUI = new GameUI(game, gameData, player);
     gameUI.start();
+    window.game = game;
   };
 
   // src/pages/playGame.ts
@@ -665,6 +686,61 @@
       );
     }, 100);
   }
+
+  // src/page.ts
+  var isNavigationButton = (button) => "nextPage" in button;
+  var Pages = {
+    GetStarted: {
+      id: "get-started",
+      navigation: [
+        { id: "get-started-button", nextPage: "MainMenu" }
+      ],
+      setup: GetStarted
+    },
+    MainMenu: {
+      id: "main-menu",
+      navigation: [
+        { id: "play", nextPage: "JoinOrStart" }
+      ],
+      setup: MainMenu
+    },
+    JoinOrStart: {
+      id: "join-or-start-game",
+      navigation: [
+        { id: "back-to-main-menu", nextPage: "MainMenu" }
+      ],
+      setup: JoinOrStart
+    },
+    PlayGame: {
+      id: "play-game",
+      navigation: [
+        { id: "back-to-join-or-start", nextPage: "JoinOrStart" }
+      ],
+      setup: PlayGame
+    }
+  };
+  var navigateTo = (page) => {
+    for (let otherPage of Object.values(Pages))
+      hide(otherPage);
+    GlobalContext.currentPage = page;
+    page.setup();
+    display(page);
+  };
+  var addNavigation = (button) => {
+    const nextPage = Pages[button.nextPage];
+    const buttonHTMLElement = document.getElementById(button.id);
+    buttonHTMLElement.addEventListener("click", (e) => {
+      e.preventDefault();
+      navigateTo(nextPage);
+    });
+  };
+  var setupPages = () => {
+    for (let page of Object.values(Pages)) {
+      const navigationButtons = page.navigation.filter(isNavigationButton);
+      for (let button of navigationButtons)
+        addNavigation(button);
+    }
+  };
 
   // node_modules/@firebase/util/dist/index.esm2017.js
   var CONSTANTS = {
@@ -11391,7 +11467,7 @@
       onChildRemoved(reference(path), (snapshot) => callback(snapshot.key));
     };
     const destroy = (path) => {
-      remove(reference(path));
+      return remove(reference(path));
     };
     return {
       read,
@@ -11405,7 +11481,7 @@
   };
   var newSandboxDataStore = (environmentName, db) => {
     const clearEnvironment = () => {
-      remove(ref(db, environmentName));
+      return remove(ref(db, environmentName));
     };
     return { ...newDataStore(environmentName, db), clearEnvironment };
   };
@@ -11431,40 +11507,14 @@
   var hide = (element) => {
     document.getElementById(element.id).classList.add("hidden");
   };
-  var pages = {
-    GetStarted: {
-      id: "get-started",
-      navigation: [
-        { id: "get-started-button", nextPage: "MainMenu" }
-      ],
-      setup: GetStarted
-    },
-    MainMenu: {
-      id: "main-menu",
-      navigation: [
-        { id: "play", nextPage: "JoinOrStart" }
-      ],
-      setup: MainMenu
-    },
-    JoinOrStart: {
-      id: "join-or-start-game",
-      navigation: [],
-      setup: JoinOrStart
-    },
-    PlayGame: {
-      id: "play-game",
-      navigation: [],
-      setup: PlayGame
-    }
-  };
   var GlobalContext = {
-    pages,
+    currentPage: Pages.GetStarted,
     currentUser: null,
     gameId: null,
     dataStore: dataStore(config)
   };
   setupPages();
-  navigateTo(pages.GetStarted);
+  navigateTo(Pages.GetStarted);
 })();
 /*! Bundled license information:
 

@@ -13,6 +13,7 @@ export class GameUI {
   renderer: Renderer
   color: Color
   currentPlayerSpan: HTMLSpanElement
+  playerStatusSpan: HTMLSpanElement
 
   constructor(game: Game, gameData: GameData, player: string) {
     this.game = game
@@ -20,11 +21,13 @@ export class GameUI {
     this.canvas = new Canvas()
     this.renderer = new Renderer(this.canvas, this.game.board)
     this.currentPlayerSpan = document.getElementById('current-player')
+    this.playerStatusSpan = document.getElementById('player-status')
     const playerColorSpan = document.getElementById('player-color')
 
     gameData.getFirstPlayer(firstPlayer => {
       this.color = player == firstPlayer ? Color.Red : Color.Blue
       playerColorSpan.innerText = this.color
+      this.currentPlayerSpan.innerText = Color.Red
     })
   }
 
@@ -54,9 +57,14 @@ export class GameUI {
   }
 
   moveMade = (position: Position) => {
+    console.debug(`Move made by ${this.game.currentPlayer.color}: { row: ${position.row}, column: ${position.column} }`)
     this.game.placePeg(position as Position)
     this.render()
-    this.currentPlayerSpan.innerText = this.game.currentPlayer.color
+    if (this.game.winner) {
+      this.playerStatusSpan.innerText = 'wins!'
+    } else {
+      this.currentPlayerSpan.innerText = this.game.currentPlayer.color
+    }
   }
 
   private windowResized = () => {

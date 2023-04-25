@@ -3,7 +3,7 @@ import { expect } from "chai";
 
 describe('Move Parsing', () => {
   it('can parse a string of moves', () => {
-    const moves: string = 'B4,H12,D5,H8,E6,I10,G12,B1,B3'
+    const moves: string = 'B4,H12,D5,H8,E6,I10,G12,B9,B3'
     const game = new Game()
     game.parse(moves)
 

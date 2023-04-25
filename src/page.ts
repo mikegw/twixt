@@ -1,12 +1,15 @@
 import { display, GlobalContext, hide, UIElement } from "./index";
-import Global = NodeJS.Global;
+import { User } from "./user";
+import { GetStarted } from "./pages/getStarted";
+import { MainMenu } from "./pages/mainMenu";
+import { JoinOrStart } from "./pages/joinOrStart";
+import { PlayGame } from "./pages/playGame";
 
 type NavigationButton = UIElement & {
   nextPage: PageName
 }
 
 const isNavigationButton = (button: Button): button is NavigationButton => "nextPage" in button;
-
 
 export type ActionButton = UIElement & {
   type: 'Action'
@@ -23,18 +26,48 @@ export type Page = UIElement & {
 const pageNames = ['GetStarted', 'MainMenu', 'JoinOrStart', 'PlayGame'] as const
 export type PageName = typeof pageNames[number]
 
-let activePage: Page
+export const Pages: Record<PageName, Page> = {
+  GetStarted: {
+    id: 'get-started',
+    navigation: [
+      { id: 'get-started-button', nextPage: 'MainMenu' }
+    ],
+    setup: GetStarted
+  },
+  MainMenu:  {
+    id: 'main-menu',
+    navigation: [
+      { id: 'play', nextPage: 'JoinOrStart' }
+    ],
+    setup: MainMenu
+  },
+  JoinOrStart: {
+    id: 'join-or-start-game',
+    navigation: [
+      { id: 'back-to-main-menu', nextPage: 'MainMenu' }
+    ],
+    setup: JoinOrStart
+  },
+  PlayGame: {
+    id: 'play-game',
+    navigation: [
+      { id: 'back-to-join-or-start', nextPage: 'JoinOrStart' }
+    ],
+    setup: PlayGame
+  }
+}
 
 export const navigateTo = (page: Page) => {
-  if(activePage) hide(activePage)
-  activePage = page
+  for (let otherPage of Object.values(Pages)) hide(otherPage)
+
+  GlobalContext.currentPage = page
 
   page.setup()
   display(page)
 }
 
 const addNavigation = (button: NavigationButton) => {
-  const nextPage = GlobalContext.pages[button.nextPage]
+  const nextPage = Pages[button.nextPage]
   const buttonHTMLElement = document.getElementById(button.id)
 
   buttonHTMLElement.addEventListener('click', (e) => {
@@ -44,9 +77,7 @@ const addNavigation = (button: NavigationButton) => {
 }
 
 export const setupPages = () => {
-  for (let pageName of pageNames ) {
-    const page = GlobalContext.pages[pageName]
-
+  for (let page of Object.values(Pages) ) {
     const navigationButtons = page.navigation.filter(isNavigationButton)
     for (let button of navigationButtons) addNavigation(button)
   }

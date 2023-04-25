@@ -1,5 +1,5 @@
 import { GlobalContext } from "../index";
-import { navigateTo } from "../page";
+import { navigateTo, Pages } from "../page";
 
 type UserRowOptions = {
   name: string,
@@ -40,7 +40,7 @@ export class UserRow {
     this.playGameButton.addEventListener('click', (e) => {
       e.preventDefault()
       GlobalContext.gameId = this.element.attributes.getNamedItem('game-id').value
-      navigateTo(GlobalContext.pages.PlayGame)
+      navigateTo(Pages.PlayGame)
     })
   }
 }

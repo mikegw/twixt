@@ -9,7 +9,7 @@ const BOUNDARY_WIDTH = 0.002
 
 const EMPTY_SLOT_COLOR = '#999'
 
-const COLORS: Record<Color, string> = {
+export const COLORS: Record<Color, string> = {
   'RED': '#F72595',
   'BLUE': '#4682F4'
 }
@@ -107,12 +107,12 @@ export class Renderer {
   }
 
   private drawLabels() {
-    for (let index = 1; index < this.board.size - 1; index++) {
-      const columnLabel = String.fromCharCode(index + 'A'.charCodeAt(0) - 1)
+    for (let index = 0; index < this.board.size; index++) {
+      const columnLabel = String.fromCharCode(index + 'A'.charCodeAt(0))
       this.drawLabel(columnLabel, { row: -1, column: index })
       this.drawLabel(columnLabel, { row: this.board.size, column: index })
 
-      const rowLabel = index.toString()
+      const rowLabel = (index + 1).toString()
       this.drawLabel(rowLabel, { row: index , column: -1 })
       this.drawLabel(rowLabel, { row: index , column: this.board.size })
     }

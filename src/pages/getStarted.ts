@@ -1,6 +1,5 @@
 import { GlobalContext } from "../index";
 import { User } from "../user";
-import { dataStore } from "../dataStore/firebase";
 import { UsernameList } from "../usernameList";
 
 export function GetStarted() {

@@ -8,13 +8,13 @@ export const startGame = (dataStore: DataStore, player: string, id?: string) => 
   const gameData = new GameData(dataStore, id)
   const gameUI = new GameUI(game, gameData, player)
 
-  gameUI.start()
+  gameUI.start();
 
 
   /*--- SILLY UI TESTING ---*/
-  //
-  // (<any>window).game = game
-  //
+
+  (<any>window).game = game
+
   // function shuffle(o: any[]){ //v1.0
   //   for(let j, x, i = o.length; i; j = Math.floor(Math.random() * i), x = o[--i], o[i] = o[j], o[j] = x);
   //   return o;
@@ -29,10 +29,13 @@ export const startGame = (dataStore: DataStore, player: string, id?: string) => 
   // }
   //
   // shuffle(shuffled);
-  // const delayMS = 50
+  // const delayMS = 5
   // for (let i = 0; i < shuffled.length*0.8; i++) {
   //   setTimeout(
-  //     () => gameUI.moveMade({row: shuffled[i][0], column: shuffled[i][1]}),
+  //     () => {
+  //       if (game.winner) document.getElementById('game-status').innerText = 'GAME OVER'
+  //       gameUI.moveMade({row: shuffled[i][0], column: shuffled[i][1]})
+  //     },
   //     delayMS*i
   //   )
   // }

@@ -10,7 +10,7 @@ const newDataStore = (environment: string, db: Database): DataStore => {
     return ref(db, [environment, path].join('/'))
   }
 
-  const read = (path: string, callback: (data: any, key: string) => void) => {
+  const read = <T=any>(path: string, callback: (data: T, key: string) => void) => {
     get(reference(path)).then(snapshot => callback(snapshot.val(), snapshot.key))
   }
 
@@ -35,7 +35,7 @@ const newDataStore = (environment: string, db: Database): DataStore => {
   }
 
   const destroy = (path: string) => {
-    remove(reference(path))
+    return remove(reference(path))
   }
 
   return {
@@ -51,7 +51,7 @@ const newDataStore = (environment: string, db: Database): DataStore => {
 
 const newSandboxDataStore = (environmentName: string, db: Database): TestDataStore => {
   const clearEnvironment = () => {
-    remove(ref(db, environmentName))
+    return remove(ref(db, environmentName))
   }
 
   return { ...newDataStore(environmentName, db), clearEnvironment }

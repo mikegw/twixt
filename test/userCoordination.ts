@@ -1,15 +1,20 @@
-import dataStore from "../src/dataStore/firebase";
-import { GameInProgress, Invite, User } from "../src/user";
+import { dataStore } from "../src/dataStore/firebase";
+import { Invite, User } from "../src/user";
 import { expect } from "chai";
+import { config } from "./support/config";
+import { TestDataStore } from "../src/dataStore";
 
 describe('User Coordination', () => {
+  const db = dataStore(config) as TestDataStore
+  beforeEach(() => db.clearEnvironment())
+
   describe('A user', () => {
     it('can invite another user to play', () => {
-      const tim = new User({ name: 'Tim' }, dataStore)
-      const mike = new User({ name: 'Mike' }, dataStore)
+      const tim = new User({ name: 'Tim' }, db)
+      const mike = new User({ name: 'Mike' }, db)
 
       const timInvited =
-        new Promise((resolve, reject) => tim.onInviteReceived(resolve))
+        new Promise((resolve) => tim.onInviteReceived(resolve))
 
       mike.invite({ name: 'Tim' })
 
@@ -19,14 +24,14 @@ describe('User Coordination', () => {
     })
 
     it('can accept an invitation to play', () => {
-      const tim = new User({ name: 'Tim' }, dataStore)
-      const mike = new User({ name: 'Mike' }, dataStore)
+      const tim = new User({ name: 'Tim' }, db)
+      const mike = new User({ name: 'Mike' }, db)
 
-      const timInvited = new Promise((resolve, reject) => {
+      const timInvited = new Promise((resolve) => {
         tim.onInviteReceived((invite, key) => resolve({ invite, key }))
       })
 
-      const timAccepted = new Promise((resolve, reject) => {
+      const timAccepted = new Promise((resolve) => {
         mike.onGameInProgress((gameInProgress, key) => resolve({ gameInProgress, key }))
       })
 

@@ -1,10 +1,7 @@
 import { User } from "../../src/user";
 import { UsernameList } from "../../src/usernameList";
-import { dataStore as buildDataStore } from "../../src/dataStore/firebase";
-import { TestDataStore } from "../../src/dataStore";
 
-
-describe('Getting Started', function() {
+describe('Starting a Game', function() {
   beforeEach(function () {
     const users = new UsernameList(this.dataStore)
     users.addUser('Tim')
