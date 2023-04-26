@@ -234,8 +234,8 @@ li.player[invite="accepted"] .play-game {
 }
 
 #play-game {
-    height: 1600px;
-    width: 1600px;
+    height: 800px;
+    width: 800px;
     padding: 0;
 }
 
