@@ -17,7 +17,7 @@ export class Canvas {
   }
 
   setDimensions = () => {
-    // Optionally print it to the console (if interested).
+    console.log(this.canvas.offsetWidth, this.canvas.offsetHeight)
     const minSize = Math.min(this.canvas.offsetHeight, this.canvas.offsetWidth)
 
     this.canvas.style.height = `${minSize}px`

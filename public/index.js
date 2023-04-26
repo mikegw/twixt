@@ -615,6 +615,7 @@
       this.canvas = document.getElementById("game-canvas");
       this.ctx = this.canvas.getContext("2d");
       this.setDimensions = () => {
+        console.log(this.canvas.offsetWidth, this.canvas.offsetHeight);
         const minSize = Math.min(this.canvas.offsetHeight, this.canvas.offsetWidth);
         this.canvas.style.height = `${minSize}px`;
         this.canvas.style.width = `${minSize}px`;
