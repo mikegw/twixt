@@ -16,3 +16,13 @@ export const parseMove = (rawMove: string): Position => {
   }
 }
 
+export const serializeMoves = (moves: Position[]) => {
+  return moves.map(serializeMove).join(',')
+}
+
+export const serializeMove = (move: Position) => {
+  const column = String.fromCharCode(move.column + 'A'.charCodeAt(0))
+  const row = String(move.row + 1)
+
+  return column + row
+}

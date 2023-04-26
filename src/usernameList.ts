@@ -26,7 +26,7 @@ export class UsernameList {
     )
   }
 
-  onUserRemoved(callback: (key: string) => void) {
+  onUserRemoved(callback: (data: any, key: string) => void) {
     this.dataStore.onChildRemoved(UsernameList.usernamesPath(), callback)
   }
 }

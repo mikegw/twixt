@@ -66,6 +66,10 @@ export class User {
   completeGame(key: string) {
     this.dataStore.destroy(User.gameInProgressPath(this.name, key))
   }
+
+  onGameCompleted(callback: (gameInProgress: GameInProgress, key: string) => void) {
+    this.dataStore.onChildRemoved(User.gamesInProgressPath(this.name), callback)
+  }
 }
 
 

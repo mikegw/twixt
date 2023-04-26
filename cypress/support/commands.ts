@@ -132,8 +132,10 @@ Cypress.Commands.add('playMoves', function(opponentName, moves) {
                 if (this.currentPlayerColor == this.playerColor) {
                   const { x, y } = positionToCoordinates(canvas[0], position)
                   cy.get('#game-canvas').click(x, y)
+                  cy.get('#game-status').contains(RegExp(`${opponentColor}|wins`))
                 } else {
                   this.gameData.write(position)
+                  cy.get('#game-status').contains(RegExp(`${this.playerColor}|wins`))
                 }
               })
           }
@@ -144,11 +146,9 @@ Cypress.Commands.add('playMoves', function(opponentName, moves) {
 Cypress.Commands.add('pegAt', (rawPosition: string) => {
   const position = parseMove(rawPosition)
 
-  return cy.get<HTMLCanvasElement>('#game-canvas')
-    .then($canvas => {
+  return cy.get<HTMLCanvasElement>('#game-canvas').then($canvas => {
       const canvas = $canvas[0]
       const ctx = canvas.getContext('2d')
-
 
       const { x, y} = positionToCoordinates(canvas, position)
       const pixel = ctx.getImageData(x * window.devicePixelRatio, y * window.devicePixelRatio, 1, 1).data;
@@ -156,7 +156,7 @@ Cypress.Commands.add('pegAt', (rawPosition: string) => {
       const [r, g, b] = Array.from(pixel.slice(0,3))
       const hex = ((r << 16) | (g << 8) | b).toString(16)
       const colorCode = "#" + ("000000" + hex).slice(-6).toUpperCase()
-
+      console.log(colorCode)
       let color: Color
 
       switch(colorCode) {
@@ -166,8 +166,10 @@ Cypress.Commands.add('pegAt', (rawPosition: string) => {
         case COLORS[Color.Blue]:
           color = Color.Blue
           break;
+        default:
+          color = null
       }
 
-      return color
+      return cy.wrap(color)
     })
 })

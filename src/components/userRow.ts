@@ -39,7 +39,10 @@ export class UserRow {
 
     this.playGameButton.addEventListener('click', (e) => {
       e.preventDefault()
+
       GlobalContext.gameId = this.element.attributes.getNamedItem('game-id').value
+      GlobalContext.gameInProgressKey = this.element.attributes.getNamedItem('game-in-progress-key').value
+
       navigateTo(Pages.PlayGame)
     })
   }

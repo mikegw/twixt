@@ -87,6 +87,9 @@
     completeGame(key) {
       this.dataStore.destroy(User.gameInProgressPath(this.name, key));
     }
+    onGameCompleted(callback) {
+      this.dataStore.onChildRemoved(User.gamesInProgressPath(this.name), callback);
+    }
   };
 
   // src/usernameList.ts
@@ -157,6 +160,7 @@
       this.playGameButton.addEventListener("click", (e) => {
         e.preventDefault();
         GlobalContext.gameId = this.element.attributes.getNamedItem("game-id").value;
+        GlobalContext.gameInProgressKey = this.element.attributes.getNamedItem("game-in-progress-key").value;
         navigateTo(Pages.PlayGame);
       });
     }
@@ -166,16 +170,22 @@
   var UserList = class {
     constructor(element, usernames) {
       this.addEventListeners = () => {
-        GlobalContext.currentUser.onInviteReceived(({ name: name4 }, key) => {
+        const user = GlobalContext.currentUser;
+        user.onInviteReceived(({ name: name4 }, key) => {
           const userLi = document.getElementById(`player-${name4}`);
           userLi.setAttribute("invite", "pending");
           userLi.setAttribute("invite-key", key);
         });
-        GlobalContext.currentUser.onGameInProgress(({ gameId, opponent }, key) => {
+        user.onGameInProgress(({ gameId, opponent }, key) => {
           const userLi = document.getElementById(`player-${opponent}`);
           userLi.setAttribute("invite", "accepted");
           userLi.setAttribute("game-id", gameId);
           userLi.setAttribute("game-in-progress-key", key);
+          GlobalContext.currentUser.onGameCompleted(({ gameId: gameId2, opponent: opponent2 }, key2) => {
+            userLi.removeAttribute("invite");
+            userLi.removeAttribute("game-id");
+            userLi.removeAttribute("game-in-progress-key");
+          });
         });
       };
       this.usernames = usernames;
@@ -190,7 +200,7 @@
         const row = this.newRowElement(name4);
         this.element.appendChild(row.element);
       });
-      this.usernames.onUserRemoved((name4) => {
+      this.usernames.onUserRemoved((_, name4) => {
         const userLi = document.getElementById(`player-${name4}`);
         userLi.remove();
       });
@@ -200,6 +210,7 @@
         name: name4,
         onInvite: () => GlobalContext.currentUser.invite({ name: name4 }),
         onAcceptInvite: (key) => {
+          console.log("INVITE ACCEPTED");
           GlobalContext.currentUser.acceptInvite({ name: name4 }, key);
         }
       });
@@ -366,6 +377,14 @@
       column: rawColumn.charCodeAt(0) - "A".charCodeAt(0)
     };
   };
+  var serializeMoves = (moves) => {
+    return moves.map(serializeMove).join(",");
+  };
+  var serializeMove = (move) => {
+    const column = String.fromCharCode(move.column + "A".charCodeAt(0));
+    const row = String(move.row + 1);
+    return column + row;
+  };
 
   // src/twixt/game.ts
   var Game = class {
@@ -373,6 +392,16 @@
       this.players = [new Player("RED" /* Red */), new Player("BLUE" /* Blue */)];
       this.board = new Board();
       this.currentPlayerIndex = 0;
+      this.moves = [];
+      this.propagateToNeighbors = (slot, connection) => {
+        const slotsToConnect = [slot];
+        while (slotsToConnect.length > 0) {
+          const slotToConnect = slotsToConnect.shift();
+          slotToConnect[connection] = true;
+          const neighboringSlotsToConnect = this.board.neighboringSlots(slotToConnect.position).filter((slot2) => slot2.color == this.currentPlayer.color).filter((slot2) => !slot2[connection]);
+          slotsToConnect.push(...neighboringSlotsToConnect);
+        }
+      };
     }
     get currentPlayer() {
       return this.players[this.currentPlayerIndex];
@@ -386,6 +415,7 @@
       const slot = this.board.place(this.currentPlayer.color, position);
       if (!slot)
         return { slot, connectionsAdded: [] };
+      this.moves.push(position);
       if (position.row == 0 && this.currentPlayer.color == "RED" /* Red */ || position.column == 0 && this.currentPlayer.color == "BLUE" /* Blue */) {
         slot.isConnectedToStart = true;
       }
@@ -400,23 +430,11 @@
       const neighboringSlots = this.board.neighboringSlots(position);
       const neighboringSlotsWithColor = neighboringSlots.filter((slot2) => slot2.color == this.currentPlayer.color);
       const connections = neighboringSlotsWithColor.map((neighbor) => this.connect(neighbor, slot));
-      if (neighboringSlotsWithColor.some((slot2) => slot2.isConnectedToStart)) {
-        const slotsToConnect = [this.board.slotAt(position)];
-        while (slotsToConnect.length > 0) {
-          const slotToConnect = slotsToConnect.shift();
-          slotToConnect.isConnectedToStart = true;
-          const neighboringSlotsToConnect = this.board.neighboringSlots(slotToConnect.position).filter((slot2) => slot2.color == this.currentPlayer.color).filter((slot2) => !slot2.isConnectedToStart);
-          slotsToConnect.push(...neighboringSlotsToConnect);
-        }
+      if ([this.board.slotAt(position), ...neighboringSlotsWithColor].some((slot2) => slot2.isConnectedToStart)) {
+        this.propagateToNeighbors(this.board.slotAt(position), "isConnectedToStart");
       }
-      if (neighboringSlotsWithColor.some((slot2) => slot2.isConnectedToEnd)) {
-        const slotsToConnect = [this.board.slotAt(position)];
-        while (slotsToConnect.length > 0) {
-          const slotToConnect = slotsToConnect.shift();
-          slotToConnect.isConnectedToEnd = true;
-          const neighboringSlotsToConnect = this.board.neighboringSlots(slotToConnect.position).filter((slot2) => slot2.color == this.currentPlayer.color).filter((slot2) => !slot2.isConnectedToEnd);
-          slotsToConnect.push(...neighboringSlotsToConnect);
-        }
+      if ([this.board.slotAt(position), ...neighboringSlotsWithColor].some((slot2) => slot2.isConnectedToEnd)) {
+        this.propagateToNeighbors(this.board.slotAt(position), "isConnectedToStart");
       }
       return connections.filter(Boolean);
     }
@@ -431,14 +449,47 @@
       for (let position of positions)
         this.placePeg(position);
     }
+    get serialize() {
+      return serializeMoves(this.moves);
+    }
   };
 
-  // src/twixt/gameUI/renderer.ts
+  // src/twixt/gameUI/renderer/renderPeg.ts
   var PEG_RADIUS = 525e-5;
+  var ANIMATION_SPEED = 0.06;
+  var drawPeg = (pegAnimation, canvas, gapSize) => {
+    const slotCoordinates = positionToCoordinates(pegAnimation.peg.position, gapSize);
+    canvas.drawCircle(
+      slotCoordinates,
+      pegRadius(pegAnimation.completion, radiusValue, canvas),
+      COLORS[pegAnimation.peg.color]
+    );
+    if (pegAnimation.completion < 1)
+      pegAnimation.completion = nextFrame(pegAnimation.completion);
+  };
+  var pegRadius = (completion, animation, canvas) => {
+    return Math.ceil(PEG_RADIUS * canvas.size * animation(completion));
+  };
+  var radiusValue = (completion) => {
+    if (completion < 0.75) {
+      return easeInOutCubic(completion * 2);
+    } else {
+      return easeInOutCubic(1.5 - (completion - 0.75) * 2);
+    }
+  };
+  function easeInOutCubic(x) {
+    return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+  }
+  function nextFrame(animationFrame) {
+    return Math.min(animationFrame + ANIMATION_SPEED, 1);
+  }
+
+  // src/twixt/gameUI/renderer.ts
   var EMPTY_SLOT_RADIUS = 3e-3;
   var CONNECTION_WIDTH = 4e-3;
   var BOUNDARY_WIDTH = 2e-3;
   var EMPTY_SLOT_COLOR = "#999";
+  var HIGHLIGHT_COLOR = "#FFFFFF22";
   var COLORS = {
     "RED": "#F72595",
     "BLUE": "#4682F4"
@@ -448,6 +499,7 @@
   var Renderer = class {
     constructor(canvas, board) {
       this.padding = BOARD_PADDING;
+      this.animatedPegs = [];
       this.canvas = canvas;
       this.board = board;
       this.prerenderEmptyBoard();
@@ -456,10 +508,15 @@
       return this.canvas.size / (this.board.size + 2 * this.padding);
     }
     draw() {
-      this.canvas.clear();
-      this.canvas.prerender();
-      this.drawConnections();
-      this.drawPegs();
+      window.requestAnimationFrame(() => {
+        this.canvas.clear();
+        this.canvas.prerender();
+        this.drawConnections();
+        this.drawPegs();
+        this.highlightLastPegDrawn();
+        if (this.animatedPegs.some((animation) => animation.completion < 1))
+          this.draw();
+      });
     }
     prerenderEmptyBoard() {
       this.drawEmptySlots();
@@ -499,22 +556,30 @@
       }
     }
     drawPegs() {
-      for (let slot of this.board.slots) {
-        if (!slot.isOccupied)
-          continue;
-        const slotCoordinates = this.positionToCoordinates(slot.position);
-        this.canvas.drawCircle(
-          slotCoordinates,
-          this.pegRadius,
-          COLORS[slot.color]
-        );
+      for (let slot of this.board.slots.filter((slot2) => slot2.isOccupied)) {
+        let animatedPeg = this.animatedPegs.find((animated) => animated.peg == slot);
+        if (!animatedPeg) {
+          animatedPeg = { peg: slot, completion: 0 };
+          this.animatedPegs.push(animatedPeg);
+        }
+        if (slot.isOccupied)
+          drawPeg(animatedPeg, this.canvas, this.slotGapSize);
       }
     }
+    slotsToDraw() {
+      return this.board.slots.filter((slot) => slot.isOccupied);
+    }
+    highlightLastPegDrawn() {
+      const lastPegDrawn = this.animatedPegs[this.animatedPegs.length - 1];
+      console.log("hello???");
+      this.canvas.drawCircle(
+        this.positionToCoordinates(lastPegDrawn.peg.position),
+        2 * pegRadius(lastPegDrawn.completion, (n) => n, this.canvas),
+        HIGHLIGHT_COLOR
+      );
+    }
     positionToCoordinates(position) {
-      return {
-        x: (position.column + BOARD_PADDING + 0.5) * this.slotGapSize,
-        y: (position.row + BOARD_PADDING + 0.5) * this.slotGapSize
-      };
+      return positionToCoordinates(position, this.slotGapSize);
     }
     drawLabels() {
       for (let index = 0; index < this.board.size; index++) {
@@ -533,15 +598,18 @@
     get emptySlotRadius() {
       return Math.ceil(EMPTY_SLOT_RADIUS * this.canvas.size);
     }
-    get pegRadius() {
-      return Math.ceil(PEG_RADIUS * this.canvas.size);
-    }
     get connectionWidth() {
       return Math.ceil(CONNECTION_WIDTH * this.canvas.size);
     }
     get boundaryWidth() {
       return Math.ceil(BOUNDARY_WIDTH * this.canvas.size);
     }
+  };
+  var positionToCoordinates = (position, gapSize) => {
+    return {
+      x: (position.column + BOARD_PADDING + 0.5) * gapSize,
+      y: (position.row + BOARD_PADDING + 0.5) * gapSize
+    };
   };
 
   // src/twixt/gameUI/canvas.ts
@@ -685,6 +753,10 @@
         GlobalContext.gameId
       );
     }, 100);
+    const backButton = document.getElementById("back-to-join-or-start");
+    backButton.addEventListener("click", (e) => {
+      GlobalContext.currentUser.completeGame(GlobalContext.gameInProgressKey);
+    });
   }
 
   // src/page.ts
@@ -11464,7 +11536,7 @@
       onChildChanged(reference(path), (snapshot) => callback(snapshot.val(), snapshot.key));
     };
     const childRemoved = (path, callback) => {
-      onChildRemoved(reference(path), (snapshot) => callback(snapshot.key));
+      onChildRemoved(reference(path), (snapshot) => callback(snapshot.key, snapshot.val()));
     };
     const destroy = (path) => {
       return remove(reference(path));
@@ -11511,6 +11583,7 @@
     currentPage: Pages.GetStarted,
     currentUser: null,
     gameId: null,
+    gameInProgressKey: null,
     dataStore: dataStore(config)
   };
   setupPages();

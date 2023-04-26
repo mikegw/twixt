@@ -2,12 +2,13 @@ import { Board, Position } from "./board";
 import { Color, Player } from "./player";
 import { Slot } from "./board/slot";
 import { Connection } from "./board/connection";
-import { parseMoves } from "./parse";
+import { parseMoves, serializeMoves } from "./parse";
 
 export class Game {
   players = [new Player(Color.Red), new Player(Color.Blue)]
   board =  new Board()
   currentPlayerIndex = 0
+  moves: Position[] = []
 
   get currentPlayer() {
     return this.players[this.currentPlayerIndex]
@@ -22,6 +23,7 @@ export class Game {
   placePeg(position: Position): PlacePegResult {
     const slot = this.board.place(this.currentPlayer.color, position)
     if (!slot) return { slot, connectionsAdded: [] }
+    this.moves.push(position)
 
     if ((position.row == 0 && this.currentPlayer.color == Color.Red) ||
       (position.column == 0 && this.currentPlayer.color == Color.Blue)) {
@@ -49,33 +51,31 @@ export class Game {
     const connections =
       neighboringSlotsWithColor.map(neighbor => this.connect(neighbor, slot))
 
-    if (neighboringSlotsWithColor.some(slot => slot.isConnectedToStart)) {
-      const slotsToConnect = [this.board.slotAt(position)]
-      while (slotsToConnect.length > 0) {
-        const slotToConnect = slotsToConnect.shift()
-        slotToConnect.isConnectedToStart = true
-        const neighboringSlotsToConnect =
-          this.board.neighboringSlots(slotToConnect.position)
-            .filter(slot => slot.color == this.currentPlayer.color)
-            .filter(slot => !slot.isConnectedToStart)
-        slotsToConnect.push(...neighboringSlotsToConnect)
-      }
+    if ([this.board.slotAt(position), ...neighboringSlotsWithColor].some(slot => slot.isConnectedToStart)) {
+      this.propagateToNeighbors(this.board.slotAt(position), 'isConnectedToStart')
     }
 
-    if (neighboringSlotsWithColor.some(slot => slot.isConnectedToEnd)) {
-      const slotsToConnect = [this.board.slotAt(position)]
-      while (slotsToConnect.length > 0) {
-        const slotToConnect = slotsToConnect.shift()
-        slotToConnect.isConnectedToEnd = true
-        const neighboringSlotsToConnect =
-          this.board.neighboringSlots(slotToConnect.position)
-          .filter(slot => slot.color == this.currentPlayer.color)
-          .filter(slot => !slot.isConnectedToEnd)
-        slotsToConnect.push(...neighboringSlotsToConnect)
-      }
+    if ([this.board.slotAt(position), ...neighboringSlotsWithColor].some(slot => slot.isConnectedToEnd)) {
+      this.propagateToNeighbors(this.board.slotAt(position), 'isConnectedToStart')
     }
 
     return connections.filter(Boolean);
+  }
+
+  private propagateToNeighbors = (slot: Slot, connection: 'isConnectedToStart'|'isConnectedToEnd') => {
+    const slotsToConnect = [slot]
+
+    while (slotsToConnect.length > 0) {
+      const slotToConnect = slotsToConnect.shift()
+      slotToConnect[connection] = true
+
+      const neighboringSlotsToConnect =
+        this.board.neighboringSlots(slotToConnect.position)
+        .filter(slot => slot.color == this.currentPlayer.color)
+        .filter(slot => !slot[connection])
+
+      slotsToConnect.push(...neighboringSlotsToConnect)
+    }
   }
 
   private connect(slot1: Slot, slot2: Slot): Connection | null {
@@ -89,6 +89,10 @@ export class Game {
   parse(rawMoves: string) {
     const positions = parseMoves(rawMoves)
     for (let position of positions) this.placePeg(position)
+  }
+
+  get serialize() {
+    return serializeMoves(this.moves)
   }
 }
 

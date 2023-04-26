@@ -22,6 +22,7 @@ export const hide = (element: UIElement) => {
 }
 
 export type GlobalContextType = {
+  gameInProgressKey: string;
   gameId: string
   currentUser: User
   currentPage: Page
@@ -32,6 +33,7 @@ export const GlobalContext: GlobalContextType = {
   currentPage: Pages.GetStarted,
   currentUser: null,
   gameId: null,
+  gameInProgressKey: null,
   dataStore: dataStore(config)
 }
 

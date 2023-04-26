@@ -1,20 +1,19 @@
 import { Board, Position } from "../board"
 import { Canvas, Coordinates } from "./canvas";
 import { Color } from "../player";
+import { AnimatedPeg, drawPeg, pegRadius } from "./renderer/renderPeg";
 
-const PEG_RADIUS = 0.00525
 const EMPTY_SLOT_RADIUS = 0.003
 const CONNECTION_WIDTH = 0.004
 const BOUNDARY_WIDTH = 0.002
 
 const EMPTY_SLOT_COLOR = '#999'
+const HIGHLIGHT_COLOR = '#FFFFFF22'
 
 export const COLORS: Record<Color, string> = {
   'RED': '#F72595',
   'BLUE': '#4682F4'
 }
-
-
 
 export const BOARD_PADDING = 1
 
@@ -24,6 +23,7 @@ export class Renderer {
   canvas: Canvas
   board: Board
   padding = BOARD_PADDING
+  animatedPegs: AnimatedPeg[] = []
 
   get slotGapSize() {
     return this.canvas.size / (this.board.size + 2 * this.padding)
@@ -36,13 +36,17 @@ export class Renderer {
   }
 
   draw() {
-    this.canvas.clear()
-    this.canvas.prerender()
-    this.drawConnections()
-    this.drawPegs()
+    window.requestAnimationFrame(() => {
+      this.canvas.clear()
+      this.canvas.prerender()
+      this.drawConnections()
+      this.drawPegs()
+
+      this.highlightLastPegDrawn()
+
+      if (this.animatedPegs.some(animation => animation.completion < 1)) this.draw()
+    })
   }
-
-
 
   prerenderEmptyBoard() {
     this.drawEmptySlots()
@@ -88,22 +92,34 @@ export class Renderer {
   }
 
   private drawPegs() {
-    for (let slot of this.board.slots) {
-      if (!slot.isOccupied) continue
-      const slotCoordinates = this.positionToCoordinates(slot.position)
-      this.canvas.drawCircle(
-        slotCoordinates,
-        this.pegRadius,
-        COLORS[slot.color]
-      )
+    for (let slot of this.board.slots.filter(slot => slot.isOccupied)) {
+      let animatedPeg = this.animatedPegs.find(animated => animated.peg == slot)
+      if (!animatedPeg) {
+        animatedPeg = { peg: slot, completion: 0 }
+        this.animatedPegs.push(animatedPeg)
+      }
+      if (slot.isOccupied) drawPeg(animatedPeg, this.canvas, this.slotGapSize)
     }
   }
 
+  private slotsToDraw() {
+    return this.board.slots.filter(slot => slot.isOccupied)
+  }
+
+  private highlightLastPegDrawn() {
+    const lastPegDrawn = this.animatedPegs[this.animatedPegs.length - 1]
+
+    console.log("hello???")
+
+    this.canvas.drawCircle(
+      this.positionToCoordinates(lastPegDrawn.peg.position),
+      2 * pegRadius(lastPegDrawn.completion, n => n, this.canvas),
+      HIGHLIGHT_COLOR,
+    )
+  }
+
   private positionToCoordinates(position: Position): Coordinates {
-    return {
-      x: (position.column + BOARD_PADDING + 0.5) * this.slotGapSize,
-      y: (position.row + BOARD_PADDING + 0.5) * this.slotGapSize
-    }
+    return positionToCoordinates(position, this.slotGapSize)
   }
 
   private drawLabels() {
@@ -127,15 +143,18 @@ export class Renderer {
     return Math.ceil(EMPTY_SLOT_RADIUS * this.canvas.size)
   }
 
-  private get pegRadius() {
-    return Math.ceil(PEG_RADIUS * this.canvas.size)
-  }
-
   private get connectionWidth() {
     return Math.ceil(CONNECTION_WIDTH * this.canvas.size)
   }
 
   private get boundaryWidth() {
     return Math.ceil(BOUNDARY_WIDTH * this.canvas.size)
+  }
+}
+
+export const positionToCoordinates = (position: Position, gapSize: number): Coordinates => {
+  return {
+    x: (position.column + BOARD_PADDING + 0.5) * gapSize,
+    y: (position.row + BOARD_PADDING + 0.5) * gapSize
   }
 }
