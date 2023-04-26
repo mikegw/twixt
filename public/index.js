@@ -183,6 +183,7 @@
           userLi.setAttribute("game-in-progress-key", key);
           GlobalContext.currentUser.onGameCompleted(({ gameId: gameId2, opponent: opponent2 }, key2) => {
             userLi.removeAttribute("invite");
+            userLi.removeAttribute("invite-key");
             userLi.removeAttribute("game-id");
             userLi.removeAttribute("game-in-progress-key");
           });
@@ -210,7 +211,6 @@
         name: name4,
         onInvite: () => GlobalContext.currentUser.invite({ name: name4 }),
         onAcceptInvite: (key) => {
-          console.log("INVITE ACCEPTED");
           GlobalContext.currentUser.acceptInvite({ name: name4 }, key);
         }
       });
@@ -571,7 +571,8 @@
     }
     highlightLastPegDrawn() {
       const lastPegDrawn = this.animatedPegs[this.animatedPegs.length - 1];
-      console.log("hello???");
+      if (!lastPegDrawn)
+        return;
       this.canvas.drawCircle(
         this.positionToCoordinates(lastPegDrawn.peg.position),
         2 * pegRadius(lastPegDrawn.completion, (n) => n, this.canvas),
@@ -679,7 +680,7 @@
 
   // src/twixt/gameUI.ts
   var GameUI = class {
-    constructor(game, gameData, player) {
+    constructor(game, gameData, player, onComplete) {
       this.canvasClicked = (cursorPosition) => {
         if (this.game.currentPlayer.color != this.color)
           return;
@@ -696,6 +697,7 @@
         this.render();
         if (this.game.winner) {
           this.playerStatusSpan.innerText = "wins!";
+          this.onComplete();
         } else {
           this.currentPlayerSpan.innerText = this.game.currentPlayer.color;
         }
@@ -711,6 +713,7 @@
       this.renderer = new Renderer(this.canvas, this.game.board);
       this.currentPlayerSpan = document.getElementById("current-player");
       this.playerStatusSpan = document.getElementById("player-status");
+      this.onComplete = onComplete;
       const playerColorSpan = document.getElementById("player-color");
       gameData.getFirstPlayer((firstPlayer) => {
         this.color = player == firstPlayer ? "RED" /* Red */ : "BLUE" /* Blue */;
@@ -736,10 +739,10 @@
   };
 
   // src/twixt/index.ts
-  var startGame = (dataStore2, player, id) => {
+  var startGame = (dataStore2, player, id, onComplete) => {
     const game = new Game();
     const gameData = new GameData(dataStore2, id);
-    const gameUI = new GameUI(game, gameData, player);
+    const gameUI = new GameUI(game, gameData, player, onComplete);
     gameUI.start();
     window.game = game;
   };
@@ -750,13 +753,10 @@
       startGame(
         GlobalContext.dataStore,
         GlobalContext.currentUser.name,
-        GlobalContext.gameId
+        GlobalContext.gameId,
+        () => GlobalContext.currentUser.completeGame(GlobalContext.gameInProgressKey)
       );
     }, 100);
-    const backButton = document.getElementById("back-to-join-or-start");
-    backButton.addEventListener("click", (e) => {
-      GlobalContext.currentUser.completeGame(GlobalContext.gameInProgressKey);
-    });
   }
 
   // src/page.ts

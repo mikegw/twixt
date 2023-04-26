@@ -43,6 +43,7 @@ export class UserList {
 
       GlobalContext.currentUser.onGameCompleted(({gameId, opponent}, key) => {
         userLi.removeAttribute('invite')
+        userLi.removeAttribute('invite-key')
         userLi.removeAttribute('game-id')
         userLi.removeAttribute('game-in-progress-key')
       })
@@ -54,7 +55,6 @@ export class UserList {
       name,
       onInvite: () => GlobalContext.currentUser.invite({ name }),
       onAcceptInvite: (key: string) => {
-        console.log('INVITE ACCEPTED')
         GlobalContext.currentUser.acceptInvite({ name }, key)
       }
     })

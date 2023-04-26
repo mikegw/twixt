@@ -9,13 +9,9 @@ export function PlayGame(): void {
       startGame(
         GlobalContext.dataStore,
         GlobalContext.currentUser.name,
-        GlobalContext.gameId
+        GlobalContext.gameId,
+        () => GlobalContext.currentUser.completeGame(GlobalContext.gameInProgressKey)
       )
   }, 100)
-
-  const backButton = document.getElementById('back-to-join-or-start')
-  backButton.addEventListener('click', (e) => {
-    GlobalContext.currentUser.completeGame(GlobalContext.gameInProgressKey)
-  })
 }
 

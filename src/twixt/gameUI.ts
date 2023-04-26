@@ -14,14 +14,17 @@ export class GameUI {
   color: Color
   currentPlayerSpan: HTMLSpanElement
   playerStatusSpan: HTMLSpanElement
+  onComplete: () => void
 
-  constructor(game: Game, gameData: GameData, player: string) {
+  constructor(game: Game, gameData: GameData, player: string, onComplete: () => void) {
     this.game = game
     this.gameData = gameData
     this.canvas = new Canvas()
     this.renderer = new Renderer(this.canvas, this.game.board)
     this.currentPlayerSpan = document.getElementById('current-player')
     this.playerStatusSpan = document.getElementById('player-status')
+    this.onComplete = onComplete
+
     const playerColorSpan = document.getElementById('player-color')
 
     gameData.getFirstPlayer(firstPlayer => {
@@ -62,6 +65,7 @@ export class GameUI {
     this.render()
     if (this.game.winner) {
       this.playerStatusSpan.innerText = 'wins!'
+      this.onComplete()
     } else {
       this.currentPlayerSpan.innerText = this.game.currentPlayer.color
     }

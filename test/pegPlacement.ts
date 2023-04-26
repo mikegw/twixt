@@ -119,4 +119,13 @@ describe('Peg Placement', () => {
     expect(result.slot).to.be.null
   })
 
+  it('exposes pegs in the order they were placed', () => {
+    const game = new Game()
+
+    game.placePeg({ row: 0, column: 1 })
+    game.placePeg({ row: 2, column: 2 })
+    game.placePeg({ row: 1, column: 0 })
+
+    expect(game.board.pegs[2].position.row).to.eq(1)
+  })
 });

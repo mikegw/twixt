@@ -108,8 +108,7 @@ export class Renderer {
 
   private highlightLastPegDrawn() {
     const lastPegDrawn = this.animatedPegs[this.animatedPegs.length - 1]
-
-    console.log("hello???")
+    if(!lastPegDrawn) return
 
     this.canvas.drawCircle(
       this.positionToCoordinates(lastPegDrawn.peg.position),

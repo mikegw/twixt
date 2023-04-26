@@ -3,10 +3,10 @@ import { GameData } from "./gameData";
 import { GameUI } from "./gameUI";
 import { DataStore } from "../dataStore";
 
-export const startGame = (dataStore: DataStore, player: string, id?: string) => {
+export const startGame = (dataStore: DataStore, player: string, id: string, onComplete: () => void) => {
   const game = new Game()
   const gameData = new GameData(dataStore, id)
-  const gameUI = new GameUI(game, gameData, player)
+  const gameUI = new GameUI(game, gameData, player, onComplete)
 
   gameUI.start();
 
