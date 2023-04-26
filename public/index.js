@@ -303,17 +303,18 @@
         return position.row >= 0 && position.row < this.size && position.column >= 0 && position.column < this.size;
       };
       this.size = size;
-      this.populateSlots(size);
     }
     place(color, position) {
       if (!this.isValidPosition(position))
         return null;
       if (this.onOpponentBorder(position, color))
         return null;
-      const slot = this.slotAt(position);
-      if (slot.isOccupied)
+      let slot = this.slotAt(position);
+      if (slot)
         return null;
+      slot = new Slot(position);
       slot.color = color;
+      this.slots.push(slot);
       return slot;
     }
     connect(color, slots) {
@@ -324,17 +325,7 @@
       return connection;
     }
     neighboringSlots(position) {
-      return this.neighboringPositions(position).map(this.slotAt).filter((slot) => slot.isOccupied);
-    }
-    populateSlots(size) {
-      for (let row = 0; row < size; row++) {
-        for (let column = 0; column < size; column++) {
-          const position = { row, column };
-          if (this.corners.some((corner) => sameVectors(position, corner)))
-            continue;
-          this.slots.push(new Slot(position));
-        }
-      }
+      return this.neighboringPositions(position).map(this.slotAt).filter((slot) => slot);
     }
     get corners() {
       return [
@@ -524,13 +515,18 @@
       this.drawLabels();
     }
     drawEmptySlots() {
-      for (let slot of this.board.slots) {
-        this.canvas.drawCircle(
-          this.positionToCoordinates(slot.position),
-          this.emptySlotRadius,
-          EMPTY_SLOT_COLOR,
-          true
-        );
+      for (let row = 0; row < this.board.size; row++) {
+        for (let column = 0; column < this.board.size; column++) {
+          const position = { row, column };
+          if (!this.board.isValidPosition(position))
+            continue;
+          this.canvas.drawCircle(
+            this.positionToCoordinates(position),
+            this.emptySlotRadius,
+            EMPTY_SLOT_COLOR,
+            true
+          );
+        }
       }
     }
     drawBoundaries() {

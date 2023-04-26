@@ -25,7 +25,6 @@ export class Board {
 
   constructor(size = BOARD_SIZE) {
     this.size = size
-    this.populateSlots(size)
   }
 
   place(color: Color, position: Position): Slot {
@@ -33,10 +32,12 @@ export class Board {
 
     if (this.onOpponentBorder(position, color)) return null
 
-    const slot = this.slotAt(position)
-    if (slot.isOccupied) return null
+    let slot = this.slotAt(position)
+    if (slot) return null
 
+    slot = new Slot(position)
     slot.color = color
+    this.slots.push(slot)
 
     return slot
   }
@@ -55,10 +56,10 @@ export class Board {
   }
 
   neighboringSlots(position: Position): Slot[] {
-    return this.neighboringPositions(position).map(this.slotAt).filter(slot => slot.isOccupied)
+    return this.neighboringPositions(position).map(this.slotAt).filter(slot => slot)
   }
 
-  private isValidPosition = (position: Position): boolean => {
+  isValidPosition = (position: Position): boolean => {
     return (
       this.isOnBoard(position) &&
       !this.corners.some(corner => sameVectors(position, corner))
@@ -76,17 +77,6 @@ export class Board {
       position.column >= 0 &&
       position.column < this.size
     )
-  }
-
-  private populateSlots(size: number) {
-    for (let row = 0; row < size; row++) {
-      for (let column = 0; column < size; column++) {
-        const position = { row, column }
-        if (this.corners.some(corner => sameVectors(position, corner))) continue
-
-        this.slots.push(new Slot(position))
-      }
-    }
   }
 
   private get corners(): Position[] {

@@ -55,13 +55,18 @@ export class Renderer {
   }
 
   private drawEmptySlots() {
-    for (let slot of this.board.slots) {
-      this.canvas.drawCircle(
-        this.positionToCoordinates(slot.position),
-        this.emptySlotRadius,
-        EMPTY_SLOT_COLOR,
-        true
-      )
+    for (let row = 0; row < this.board.size; row++) {
+      for (let column = 0; column < this.board.size; column++) {
+        const position = { row, column }
+        if (!this.board.isValidPosition(position)) continue
+
+        this.canvas.drawCircle(
+          this.positionToCoordinates(position),
+          this.emptySlotRadius,
+          EMPTY_SLOT_COLOR,
+          true
+        )
+      }
     }
   }
 
