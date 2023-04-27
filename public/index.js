@@ -189,6 +189,9 @@
           });
         });
       };
+      this.compare = (li1, li2) => {
+        return li1.textContent.toLocaleLowerCase().localeCompare(li2.textContent.toLocaleLowerCase());
+      };
       this.usernames = usernames;
       this.element = element;
       this.populate();
@@ -200,6 +203,7 @@
           return;
         const row = this.newRowElement(name4);
         this.element.appendChild(row.element);
+        this.sort();
       });
       this.usernames.onUserRemoved((_, name4) => {
         const userLi = document.getElementById(`player-${name4}`);
@@ -214,6 +218,13 @@
           GlobalContext.currentUser.acceptInvite({ name: name4 }, key);
         }
       });
+    }
+    sort() {
+      console.log("Sorting");
+      const items = Array.from(this.element.children).map(this.element.removeChild);
+      const orderedItems = items.sort(this.compare);
+      for (let item of orderedItems)
+        this.element.appendChild(item);
     }
   };
 
@@ -657,7 +668,7 @@
     drawText(color, text, position, prerender = false) {
       const ctx = prerender ? this.offscreenCtx : this.ctx;
       ctx.fillStyle = color;
-      ctx.font = `${16 * this.pixelRatio}px Trebuchet MS`;
+      ctx.font = `${14 * this.pixelRatio}px Trebuchet MS`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillText(text, position.x, position.y);
@@ -746,6 +757,8 @@
 
   // src/pages/playGame.ts
   function PlayGame() {
+    const canvas = new Canvas();
+    canvas.clear();
     setTimeout(() => {
       startGame(
         GlobalContext.dataStore,

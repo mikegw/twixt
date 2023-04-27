@@ -67,7 +67,7 @@ export class Canvas {
     const ctx = prerender ? this.offscreenCtx : this.ctx
 
     ctx.fillStyle = color
-    ctx.font = `${16 * this.pixelRatio}px Trebuchet MS`
+    ctx.font = `${14 * this.pixelRatio}px Trebuchet MS`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
 

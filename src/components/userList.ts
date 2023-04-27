@@ -19,6 +19,7 @@ export class UserList {
 
       const row = this.newRowElement(name)
       this.element.appendChild(row.element)
+      this.sort()
     })
 
     this.usernames.onUserRemoved((_, name) => {
@@ -58,5 +59,18 @@ export class UserList {
         GlobalContext.currentUser.acceptInvite({ name }, key)
       }
     })
+  }
+
+  private sort() {
+    console.log('Sorting')
+    const items = Array.from(this.element.children).map(this.element.removeChild)
+
+    const orderedItems = items.sort(this.compare)
+
+    for (let item of orderedItems) this.element.appendChild(item)
+  }
+
+  private compare = (li1: HTMLLIElement, li2: HTMLLIElement): number => {
+    return li1.textContent.toLocaleLowerCase().localeCompare(li2.textContent.toLocaleLowerCase())
   }
 }
