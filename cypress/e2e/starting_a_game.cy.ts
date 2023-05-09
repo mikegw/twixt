@@ -46,8 +46,9 @@ describe('Starting a Game', function() {
       .get('.play-game').should('be.visible')
       .click()
 
-    cy.get('#currentPlayer').then(currentPlayer => {
-      expect(currentPlayer.text()).to.be.oneOf(['Tim', 'Mike'])
-    })
+    cy.get('#player-color').contains(/RED|BLUE/)
+      .then(currentPlayer => {
+        expect(currentPlayer.text()).to.be.oneOf(['RED', 'BLUE'])
+      })
   })
 })

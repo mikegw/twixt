@@ -2,99 +2,10 @@
   // <define:CONFIG>
   var define_CONFIG_default = { firebaseConfig: { apiKey: "AIzaSyBiVEerDSeDFrUaTn8nbY58WAuPr6XtbcQ", authDomain: "mw-twixt.firebaseapp.com", databaseURL: "https://mw-twixt-default-rtdb.firebaseio.com", projectId: "mw-twixt", storageBucket: "mw-twixt.appspot.com", messagingSenderId: "1048357586138", appId: "1:1048357586138:web:652cab4962c73e83e5d1e3", measurementId: "G-2DV7T5RWJB" }, environment: "production" };
 
-  // src/twixt/gameData.ts
-  function isPosition(data) {
-    return "row" in data && "column" in data;
-  }
-  var GameData = class {
-    get gamePath() {
-      return `games/${this.id}`;
-    }
-    get movesPath() {
-      return this.gamePath + "/moves";
-    }
-    get firstPlayerPath() {
-      return this.gamePath + "/firstPlayer";
-    }
-    constructor(dataStore2, id) {
-      this.dataStore = dataStore2;
-      this.id = id || GameData.generateGameId();
-    }
-    subscribe(callback) {
-      this.dataStore.onChildAdded(this.movesPath, (data) => {
-        if (isPosition(data))
-          callback(data);
-      });
-    }
-    write(position) {
-      this.dataStore.append(this.movesPath, position);
-    }
-    setFirstPlayer(name4) {
-      this.dataStore.write(this.firstPlayerPath, name4);
-    }
-    getFirstPlayer(callback) {
-      this.dataStore.read(this.firstPlayerPath, callback);
-    }
-    static generateGameId() {
-      const firstPart = Math.random() * 46656 | 0;
-      const secondPart = Math.random() * 46656 | 0;
-      const firstPartString = ("000" + firstPart.toString(36)).slice(-3);
-      const secondPartString = ("000" + secondPart.toString(36)).slice(-3);
-      return firstPartString + secondPartString;
-    }
-  };
-
-  // src/user.ts
-  var User = class {
-    constructor(userData, dataStore2) {
-      this.name = userData.name;
-      this.dataStore = dataStore2;
-    }
-    static userPath(name4) {
-      return `users/${name4}`;
-    }
-    static invitesPath(user) {
-      return this.userPath(user) + `/invites`;
-    }
-    static invitePath(user, key) {
-      return this.invitesPath(user) + `/${key}`;
-    }
-    static gamesInProgressPath(user) {
-      return this.userPath(user) + `/gamesInProgress`;
-    }
-    static gameInProgressPath(user, key) {
-      return this.gamesInProgressPath(user) + `/${key}`;
-    }
-    get userPath() {
-      return User.userPath(this.name);
-    }
-    invite(user) {
-      this.dataStore.append(User.invitesPath(user.name), { name: this.name });
-    }
-    onInviteReceived(callback) {
-      this.dataStore.onChildAdded(User.invitesPath(this.name), callback);
-    }
-    acceptInvite(invite, key) {
-      this.dataStore.destroy(User.invitePath(this.name, key));
-      const game = new GameData(this.dataStore);
-      game.setFirstPlayer(Math.random() > 0.5 ? this.name : invite.name);
-      this.dataStore.append(User.gamesInProgressPath(this.name), { gameId: game.id, opponent: invite.name });
-      this.dataStore.append(User.gamesInProgressPath(invite.name), { gameId: game.id, opponent: this.name });
-    }
-    onGameInProgress(callback) {
-      this.dataStore.onChildAdded(User.gamesInProgressPath(this.name), callback);
-    }
-    completeGame(key) {
-      this.dataStore.destroy(User.gameInProgressPath(this.name, key));
-    }
-    onGameCompleted(callback) {
-      this.dataStore.onChildRemoved(User.gamesInProgressPath(this.name), callback);
-    }
-  };
-
   // src/usernameList.ts
   var UsernameList = class {
     constructor(dataStore2) {
+      this.unsubscribeCallbacks = [];
       this.dataStore = dataStore2;
     }
     static usernamesPath() {
@@ -107,26 +18,33 @@
       this.dataStore.write(UsernameList.usernamePath(name4), true);
     }
     onUserAdded(callback) {
-      this.dataStore.onChildAdded(
+      const unsubscribe = this.dataStore.onChildAdded(
         UsernameList.usernamesPath(),
         (_, name4) => callback(name4)
       );
+      this.unsubscribeCallbacks.push(unsubscribe);
     }
     onUserRemoved(callback) {
-      this.dataStore.onChildRemoved(UsernameList.usernamesPath(), callback);
+      const unsubscribe = this.dataStore.onChildRemoved(UsernameList.usernamesPath(), callback);
+      this.unsubscribeCallbacks.push(unsubscribe);
+    }
+    unsubscribe() {
+      this.unsubscribeCallbacks.forEach((unsubscribe) => unsubscribe());
     }
   };
 
   // src/pages/getStarted.ts
   function GetStarted() {
-    const getStartedButton = document.querySelector("#get-started-button");
+    const getStartedForm = document.querySelector("#get-started");
     const usernameInput = document.querySelector('input[name="username"]');
-    getStartedButton.addEventListener("click", (e) => {
+    getStartedForm.addEventListener("submit", (e) => {
       e.preventDefault();
-      const username = usernameInput.value;
-      GlobalContext.currentUser = new User({ name: username }, GlobalContext.dataStore);
+      const username2 = usernameInput.value;
       const usernames = new UsernameList(GlobalContext.dataStore);
-      usernames.addUser(username);
+      usernames.addUser(username2);
+      loginUser(username2);
+      navigateTo(Pages.MainMenu);
+      usernameInput.value = "";
     });
   }
 
@@ -171,22 +89,32 @@
     constructor(element, usernames) {
       this.addEventListeners = () => {
         const user = GlobalContext.currentUser;
-        user.onInviteReceived(({ name: name4 }, key) => {
-          const userLi = document.getElementById(`player-${name4}`);
+        user.onInviteReceived(this.receiveInvite);
+        user.onGameInProgress(this.gameInProgress);
+      };
+      this.receiveInvite = ({ name: name4 }, key) => {
+        const userLi = document.getElementById(`player-${name4}`);
+        if (userLi) {
           userLi.setAttribute("invite", "pending");
           userLi.setAttribute("invite-key", key);
-        });
-        user.onGameInProgress(({ gameId, opponent }, key) => {
-          const userLi = document.getElementById(`player-${opponent}`);
-          userLi.setAttribute("invite", "accepted");
-          userLi.setAttribute("game-id", gameId);
-          userLi.setAttribute("game-in-progress-key", key);
-          GlobalContext.currentUser.onGameCompleted(({ gameId: gameId2, opponent: opponent2 }, key2) => {
-            userLi.removeAttribute("invite");
-            userLi.removeAttribute("invite-key");
-            userLi.removeAttribute("game-id");
-            userLi.removeAttribute("game-in-progress-key");
-          });
+        } else {
+          setTimeout(() => this.receiveInvite({ name: name4 }, key), 50);
+        }
+      };
+      this.gameInProgress = ({ gameId, opponent }, key) => {
+        const userLi = document.getElementById(`player-${opponent}`);
+        if (!userLi) {
+          setTimeout(() => this.gameInProgress({ gameId, opponent }, key), 50);
+          return;
+        }
+        userLi.setAttribute("invite", "accepted");
+        userLi.setAttribute("game-id", gameId);
+        userLi.setAttribute("game-in-progress-key", key);
+        GlobalContext.currentUser.onGameCompleted(({ gameId: gameId2, opponent: opponent2 }, key2) => {
+          userLi.removeAttribute("invite");
+          userLi.removeAttribute("invite-key");
+          userLi.removeAttribute("game-id");
+          userLi.removeAttribute("game-in-progress-key");
         });
       };
       this.compare = (li1, li2) => {
@@ -197,8 +125,12 @@
       this.populate();
       this.addEventListeners();
     }
+    clear() {
+      return Array.from(this.element.children).map((child2) => this.element.removeChild(child2));
+    }
     populate() {
       this.usernames.onUserAdded((name4) => {
+        console.log(`populate ${name4} for ${GlobalContext.currentUser.name}`);
         if (GlobalContext.currentUser.name == name4)
           return;
         const row = this.newRowElement(name4);
@@ -220,19 +152,27 @@
       });
     }
     sort() {
-      console.log("Sorting");
-      const items = Array.from(this.element.children).map(this.element.removeChild);
-      const orderedItems = items.sort(this.compare);
-      for (let item of orderedItems)
-        this.element.appendChild(item);
+      this.sorting = true;
+      setTimeout(() => {
+        if (!this.sorting)
+          return;
+        this.sorting = false;
+        console.log("Sorting");
+        const items = this.clear();
+        const orderedItems = items.sort(this.compare);
+        for (let item of orderedItems)
+          this.element.appendChild(item);
+      }, 30);
     }
   };
 
   // src/pages/joinOrStart.ts
   var userList;
   var JoinOrStart = () => {
-    if (userList)
+    console.log("Running Join Or Start");
+    if (userList !== void 0)
       return;
+    console.log("Creating User list");
     const userListElement = document.getElementById("users");
     const usernames = new UsernameList(GlobalContext.dataStore);
     userList = new UserList(userListElement, usernames);
@@ -456,6 +396,48 @@
     }
   };
 
+  // src/twixt/gameData.ts
+  function isPosition(data) {
+    return "row" in data && "column" in data;
+  }
+  var GameData = class {
+    get gamePath() {
+      return `games/${this.id}`;
+    }
+    get movesPath() {
+      return this.gamePath + "/moves";
+    }
+    get firstPlayerPath() {
+      return this.gamePath + "/firstPlayer";
+    }
+    constructor(dataStore2, id) {
+      this.dataStore = dataStore2;
+      this.id = id || GameData.generateGameId();
+    }
+    subscribe(callback) {
+      this.dataStore.onChildAdded(this.movesPath, (data) => {
+        if (isPosition(data))
+          callback(data);
+      });
+    }
+    write(position) {
+      this.dataStore.append(this.movesPath, position);
+    }
+    setFirstPlayer(name4) {
+      this.dataStore.write(this.firstPlayerPath, name4);
+    }
+    getFirstPlayer(callback) {
+      this.dataStore.read(this.firstPlayerPath, callback);
+    }
+    static generateGameId() {
+      const firstPart = Math.random() * 46656 | 0;
+      const secondPart = Math.random() * 46656 | 0;
+      const firstPartString = ("000" + firstPart.toString(36)).slice(-3);
+      const secondPartString = ("000" + secondPart.toString(36)).slice(-3);
+      return firstPartString + secondPartString;
+    }
+  };
+
   // src/twixt/gameUI/renderer/renderPeg.ts
   var PEG_RADIUS = 525e-5;
   var ANIMATION_SPEED = 0.06;
@@ -467,7 +449,7 @@
       COLORS[pegAnimation.peg.color]
     );
     if (pegAnimation.completion < 1)
-      pegAnimation.completion = nextFrame(pegAnimation.completion);
+      pegAnimation.completion = nextFrame(pegAnimation.completion, ANIMATION_SPEED);
   };
   var pegRadius = (completion, animation, canvas) => {
     return Math.ceil(PEG_RADIUS * canvas.size * animation(completion));
@@ -482,13 +464,30 @@
   function easeInOutCubic(x) {
     return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
   }
-  function nextFrame(animationFrame) {
-    return Math.min(animationFrame + ANIMATION_SPEED, 1);
+  function nextFrame(animationFrame, speed) {
+    return Math.min(animationFrame + speed, 1);
   }
+
+  // src/twixt/gameUI/renderer/renderConnection.ts
+  var CONNECTION_WIDTH = 4e-3;
+  var ANIMATION_SPEED2 = 0.06;
+  var drawConnection = (animatedConnection, canvas, gapSize) => {
+    const { connection, completion } = animatedConnection;
+    canvas.drawLine(
+      COLORS[connection.color],
+      connectionWidth(canvas),
+      positionToCoordinates(connection.slots[0].position, gapSize),
+      positionToCoordinates(connection.slots[1].position, gapSize)
+    );
+    if (completion < 1)
+      animatedConnection.completion = nextFrame(completion, ANIMATION_SPEED2);
+  };
+  var connectionWidth = (canvas) => {
+    return Math.ceil(CONNECTION_WIDTH * canvas.size);
+  };
 
   // src/twixt/gameUI/renderer.ts
   var EMPTY_SLOT_RADIUS = 3e-3;
-  var CONNECTION_WIDTH = 4e-3;
   var BOUNDARY_WIDTH = 2e-3;
   var EMPTY_SLOT_COLOR = "#999";
   var HIGHLIGHT_COLOR = "#FFFFFF22";
@@ -502,6 +501,7 @@
     constructor(canvas, board) {
       this.padding = BOARD_PADDING;
       this.animatedPegs = [];
+      this.animatedConnections = [];
       this.canvas = canvas;
       this.board = board;
       this.prerenderEmptyBoard();
@@ -554,23 +554,22 @@
     }
     drawConnections() {
       for (let connection of this.board.connections) {
-        this.canvas.drawLine(
-          COLORS[connection.color],
-          this.connectionWidth,
-          this.positionToCoordinates(connection.slots[0].position),
-          this.positionToCoordinates(connection.slots[1].position)
-        );
+        let animatedConnection = this.animatedConnections.find((animated) => animated.connection == connection);
+        if (!animatedConnection) {
+          animatedConnection = { connection, completion: 0 };
+          this.animatedConnections.push(animatedConnection);
+        }
+        drawConnection(animatedConnection, this.canvas, this.slotGapSize);
       }
     }
     drawPegs() {
-      for (let slot of this.board.slots.filter((slot2) => slot2.isOccupied)) {
+      for (let slot of this.board.slots) {
         let animatedPeg = this.animatedPegs.find((animated) => animated.peg == slot);
         if (!animatedPeg) {
           animatedPeg = { peg: slot, completion: 0 };
           this.animatedPegs.push(animatedPeg);
         }
-        if (slot.isOccupied)
-          drawPeg(animatedPeg, this.canvas, this.slotGapSize);
+        drawPeg(animatedPeg, this.canvas, this.slotGapSize);
       }
     }
     slotsToDraw() {
@@ -605,9 +604,6 @@
     }
     get emptySlotRadius() {
       return Math.ceil(EMPTY_SLOT_RADIUS * this.canvas.size);
-    }
-    get connectionWidth() {
-      return Math.ceil(CONNECTION_WIDTH * this.canvas.size);
     }
     get boundaryWidth() {
       return Math.ceil(BOUNDARY_WIDTH * this.canvas.size);
@@ -708,6 +704,7 @@
           this.onComplete();
         } else {
           this.currentPlayerSpan.innerText = this.game.currentPlayer.color;
+          this.currentPlayerSpan.setAttribute("color", this.game.currentPlayer.color);
         }
       };
       this.windowResized = () => {
@@ -725,9 +722,9 @@
       const playerColorSpan = document.getElementById("player-color");
       gameData.getFirstPlayer((firstPlayer) => {
         this.color = player == firstPlayer ? "RED" /* Red */ : "BLUE" /* Blue */;
-        playerColorSpan.innerText = this.color;
-        this.currentPlayerSpan.innerText = "RED" /* Red */;
+        this.setPlayerColor(playerColorSpan, this.color);
       });
+      this.setPlayerColor(this.currentPlayerSpan, "RED" /* Red */);
     }
     start() {
       this.canvas.setDimensions();
@@ -743,6 +740,10 @@
     }
     get slotGapSize() {
       return this.canvas.size / (this.game.board.size + 2 * BOARD_PADDING);
+    }
+    setPlayerColor(span, color) {
+      span.innerText = color;
+      span.setAttribute("color", color);
     }
   };
 
@@ -774,9 +775,7 @@
   var Pages = {
     GetStarted: {
       id: "get-started",
-      navigation: [
-        { id: "get-started-button", nextPage: "MainMenu" }
-      ],
+      navigation: [],
       setup: GetStarted
     },
     MainMenu: {
@@ -806,7 +805,7 @@
       hide(otherPage);
     GlobalContext.currentPage = page;
     page.setup();
-    display(page);
+    display2(page);
   };
   var addNavigation = (button) => {
     const nextPage = Pages[button.nextPage];
@@ -821,6 +820,61 @@
       const navigationButtons = page.navigation.filter(isNavigationButton);
       for (let button of navigationButtons)
         addNavigation(button);
+    }
+  };
+
+  // src/user.ts
+  var User = class {
+    constructor(userData, dataStore2) {
+      this.unsubscribeCallbacks = [];
+      this.name = userData.name;
+      this.dataStore = dataStore2;
+    }
+    static userPath(name4) {
+      return `users/${name4}`;
+    }
+    static invitesPath(user) {
+      return this.userPath(user) + `/invites`;
+    }
+    static invitePath(user, key) {
+      return this.invitesPath(user) + `/${key}`;
+    }
+    static gamesInProgressPath(user) {
+      return this.userPath(user) + `/gamesInProgress`;
+    }
+    static gameInProgressPath(user, key) {
+      return this.gamesInProgressPath(user) + `/${key}`;
+    }
+    get userPath() {
+      return User.userPath(this.name);
+    }
+    invite(user) {
+      this.dataStore.append(User.invitesPath(user.name), { name: this.name });
+    }
+    onInviteReceived(callback) {
+      const unsubscribe = this.dataStore.onChildAdded(User.invitesPath(this.name), callback);
+      this.unsubscribeCallbacks.push(unsubscribe);
+    }
+    acceptInvite(invite, key) {
+      this.dataStore.destroy(User.invitePath(this.name, key));
+      const game = new GameData(this.dataStore);
+      game.setFirstPlayer(Math.random() > 0.5 ? this.name : invite.name);
+      this.dataStore.append(User.gamesInProgressPath(this.name), { gameId: game.id, opponent: invite.name });
+      this.dataStore.append(User.gamesInProgressPath(invite.name), { gameId: game.id, opponent: this.name });
+    }
+    onGameInProgress(callback) {
+      const unsubscribe = this.dataStore.onChildAdded(User.gamesInProgressPath(this.name), callback);
+      this.unsubscribeCallbacks.push(unsubscribe);
+    }
+    completeGame(key) {
+      this.dataStore.destroy(User.gameInProgressPath(this.name, key));
+    }
+    onGameCompleted(callback) {
+      const unsubscribe = this.dataStore.onChildRemoved(User.gamesInProgressPath(this.name), callback);
+      this.unsubscribeCallbacks.push(unsubscribe);
+    }
+    unsubscribe() {
+      this.unsubscribeCallbacks.forEach((unsubscribe) => unsubscribe());
     }
   };
 
@@ -11540,13 +11594,17 @@
       push(reference(path), data);
     };
     const childAdded = (path, callback) => {
-      onChildAdded(reference(path), (snapshot) => callback(snapshot.val(), snapshot.key));
+      console.log("subscribing to children");
+      return onChildAdded(reference(path), (snapshot) => {
+        console.log("Child received", snapshot.key, JSON.stringify(snapshot.val()));
+        callback(snapshot.val(), snapshot.key);
+      });
     };
     const childChanged = (path, callback) => {
-      onChildChanged(reference(path), (snapshot) => callback(snapshot.val(), snapshot.key));
+      return onChildChanged(reference(path), (snapshot) => callback(snapshot.val(), snapshot.key));
     };
     const childRemoved = (path, callback) => {
-      onChildRemoved(reference(path), (snapshot) => callback(snapshot.key, snapshot.val()));
+      return onChildRemoved(reference(path), (snapshot) => callback(snapshot.key, snapshot.val()));
     };
     const destroy = (path) => {
       return remove(reference(path));
@@ -11583,11 +11641,16 @@
 
   // src/index.ts
   var config = define_CONFIG_default;
-  var display = (element) => {
-    document.getElementById(element.id).classList.remove("hidden");
+  function isHTMLElement(element) {
+    return "innerHTML" in element;
+  }
+  var display2 = (element) => {
+    let htmlElement = isHTMLElement(element) ? element : document.getElementById(element.id);
+    htmlElement.classList.remove("hidden");
   };
   var hide = (element) => {
-    document.getElementById(element.id).classList.add("hidden");
+    let htmlElement = isHTMLElement(element) ? element : document.getElementById(element.id);
+    htmlElement.classList.add("hidden");
   };
   var GlobalContext = {
     currentPage: Pages.GetStarted,
@@ -11596,8 +11659,26 @@
     gameInProgressKey: null,
     dataStore: dataStore(config)
   };
+  var USERNAME_STORAGE_KEY = "twixt-username";
+  var logoutButton = document.querySelector(".log-out-button");
+  logoutButton.addEventListener("click", () => {
+    GlobalContext.currentUser.unsubscribe();
+    window.localStorage.removeItem(USERNAME_STORAGE_KEY);
+    window.location.reload();
+  });
+  var loginUser = (name4) => {
+    window.localStorage.setItem(USERNAME_STORAGE_KEY, username);
+    GlobalContext.currentUser = new User({ name: name4 }, GlobalContext.dataStore);
+    display2(logoutButton);
+  };
   setupPages();
-  navigateTo(Pages.GetStarted);
+  var username = window.localStorage.getItem(USERNAME_STORAGE_KEY);
+  if (username) {
+    loginUser(username);
+    navigateTo(Pages.MainMenu);
+  } else {
+    navigateTo(Pages.GetStarted);
+  }
 })();
 /*! Bundled license information:
 
