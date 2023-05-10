@@ -26,12 +26,12 @@ export class GameUI {
     this.onComplete = onComplete
 
     const playerColorSpan = document.getElementById('player-color')
-
     gameData.getFirstPlayer(firstPlayer => {
       this.color = player == firstPlayer ? Color.Red : Color.Blue
-      playerColorSpan.innerText = this.color
-      this.currentPlayerSpan.innerText = Color.Red
+      this.setPlayerColor(playerColorSpan, this.color)
     })
+
+    this.setPlayerColor(this.currentPlayerSpan, Color.Red)
   }
 
   start() {
@@ -68,6 +68,7 @@ export class GameUI {
       this.onComplete()
     } else {
       this.currentPlayerSpan.innerText = this.game.currentPlayer.color
+      this.currentPlayerSpan.setAttribute('color', this.game.currentPlayer.color)
     }
   }
 
@@ -83,5 +84,10 @@ export class GameUI {
 
   private get slotGapSize(): number {
     return this.canvas.size / (this.game.board.size + 2 * BOARD_PADDING)
+  }
+
+  private setPlayerColor(span: HTMLSpanElement, color: Color) {
+    span.innerText = color
+    span.setAttribute('color', color)
   }
 }

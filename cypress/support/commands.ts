@@ -44,8 +44,8 @@ import { BOARD_PADDING, COLORS } from "../../src/twixt/gameUI/renderer";
 import { Color } from "../../src/twixt/player";
 import { GameData } from "../../src/twixt/gameData";
 
-Cypress.Commands.add('loginAs', (username) => {
-  cy.visit('/')
+Cypress.Commands.add('loginAs', (username, reload = true) => {
+  if (reload) cy.visit('/')
 
   cy.get('input[name=username]')
   .type(username)
@@ -61,6 +61,11 @@ Cypress.Commands.add('loginAs', (username) => {
   cy.get('h1').contains('Join or Start Game').should('be.visible')
 })
 
+Cypress.Commands.add('logout', () => {
+  cy.get('#log-out').click()
+  cy.get('#get-started').should('be.visible')
+})
+
 Cypress.Commands.add('acceptInviteFrom', (player) => {
   cy.get('.player').contains(player)
   .get('.invite-pending').should('be.visible')
@@ -73,11 +78,16 @@ Cypress.Commands.add('startGameWith', (player) => {
   .click()
 })
 
-Cypress.Commands.add('startGameBetween', function(name1, name2) {
+Cypress.Commands.add('startGameBetween', function(name1, name2, firstPlayer?: boolean) {
   const userNames = new UsernameList(this.dataStore)
   userNames.addUser(name2)
   const player2 = new User({ name: name2 }, this.dataStore)
   player2.invite({ name: name1 })
+
+  if (firstPlayer) {
+    cy.stub(Math, 'random').returns(firstPlayer ? 1 : 0) // bias coin-toss so that player 1 starts
+  }
+
 
   cy.loginAs(name1)
   cy.acceptInviteFrom(name2)
@@ -97,7 +107,16 @@ const positionToCoordinates = (canvas: HTMLCanvasElement, position: Position) =>
   return coordinates
 }
 
-Cypress.Commands.add('playMoves', function(opponentName, moves) {
+Cypress.Commands.add('playMove', function (position: Position, color: Color, confirm = true) {
+  return cy.get<HTMLCanvasElement>('#game-canvas')
+    .then(canvas => {
+      const { x, y } = positionToCoordinates(canvas[0], position)
+      cy.get('#game-canvas').click(x, y)
+      cy.get('#game-status').contains(RegExp(`${color === Color.Red ? Color.Blue : Color.Red}|wins`))
+    })
+})
+
+Cypress.Commands.add('playMoves', function(opponentName: string, moves: string) {
   const positions = parseMoves(moves)
 
   const receiveGame = new Promise<GameInProgress>(resolve => {
@@ -118,9 +137,7 @@ Cypress.Commands.add('playMoves', function(opponentName, moves) {
 
       return cy.get<HTMLCanvasElement>('#game-canvas')
         .then(canvas => {
-          console.log('playing moves...')
           for (let position of positions) {
-            console.log('playing move')
             cy.get('#current-player')
               .contains(/RED|BLUE/)
               .invoke('text')
@@ -130,9 +147,7 @@ Cypress.Commands.add('playMoves', function(opponentName, moves) {
 
                 console.log(this.currentPlayerColor, this.playerColor)
                 if (this.currentPlayerColor == this.playerColor) {
-                  const { x, y } = positionToCoordinates(canvas[0], position)
-                  cy.get('#game-canvas').click(x, y)
-                  cy.get('#game-status').contains(RegExp(`${opponentColor}|wins`))
+                  cy.playMove(position, this.playerColor)
                 } else {
                   this.gameData.write(position)
                   cy.get('#game-status').contains(RegExp(`${this.playerColor}|wins`))
@@ -161,9 +176,11 @@ Cypress.Commands.add('pegAt', (rawPosition: string) => {
 
       switch(colorCode) {
         case COLORS[Color.Red]:
+        case '#F842A3': // Red but highlighted
           color = Color.Red
           break;
         case COLORS[Color.Blue]:
+        case '#5F93F5': // Blue but highlighted
           color = Color.Blue
           break;
         default:

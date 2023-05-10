@@ -29,9 +29,7 @@ export type PageName = typeof pageNames[number]
 export const Pages: Record<PageName, Page> = {
   GetStarted: {
     id: 'get-started',
-    navigation: [
-      { id: 'get-started-button', nextPage: 'MainMenu' }
-    ],
+    navigation: [],
     setup: GetStarted
   },
   MainMenu:  {

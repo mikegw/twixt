@@ -13,12 +13,22 @@ const config: Config = CONFIG
 
 export type UIElement = { id: string }
 
-export const display = (element: UIElement) => {
-  document.getElementById(element.id).classList.remove('hidden')
+function isHTMLElement(element: UIElement | HTMLElement): element is HTMLElement {
+  return "innerHTML" in element
 }
 
-export const hide = (element: UIElement) => {
-  document.getElementById(element.id).classList.add('hidden')
+export const display = (element: UIElement | HTMLElement) => {
+  let htmlElement =
+    isHTMLElement(element) ? element : document.getElementById(element.id)
+
+  htmlElement.classList.remove('hidden')
+}
+
+export const hide = (element: UIElement | HTMLElement) => {
+  let htmlElement =
+    isHTMLElement(element) ? element : document.getElementById(element.id)
+
+  htmlElement.classList.add('hidden')
 }
 
 export type GlobalContextType = {
@@ -37,6 +47,30 @@ export const GlobalContext: GlobalContextType = {
   dataStore: dataStore(config)
 }
 
+const USERNAME_STORAGE_KEY = 'twixt-username'
+const logoutButton: HTMLButtonElement = document.querySelector('.log-out-button')
+logoutButton.addEventListener('click', () => {
+  GlobalContext.currentUser.unsubscribe()
+  window.localStorage.removeItem(USERNAME_STORAGE_KEY)
+  window.location.reload()
+})
+
+export const loginUser = (name: string) => {
+  window.localStorage.setItem(USERNAME_STORAGE_KEY, username)
+
+  GlobalContext.currentUser = new User({ name }, GlobalContext.dataStore)
+  display(logoutButton)
+}
+
 setupPages()
 
-navigateTo(Pages.GetStarted)
+const username = window.localStorage.getItem(USERNAME_STORAGE_KEY)
+
+if (username) {
+  loginUser(username)
+  navigateTo(Pages.MainMenu)
+} else {
+  navigateTo(Pages.GetStarted)
+}
+
+

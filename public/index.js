@@ -139,7 +139,8 @@
       });
       this.usernames.onUserRemoved((_, name4) => {
         const userLi = document.getElementById(`player-${name4}`);
-        userLi.remove();
+        if (userLi)
+          userLi.remove();
       });
     }
     newRowElement(name4) {
@@ -169,10 +170,8 @@
   // src/pages/joinOrStart.ts
   var userList;
   var JoinOrStart = () => {
-    console.log("Running Join Or Start");
     if (userList !== void 0)
       return;
-    console.log("Creating User list");
     const userListElement = document.getElementById("users");
     const usernames = new UsernameList(GlobalContext.dataStore);
     userList = new UserList(userListElement, usernames);
@@ -767,7 +766,7 @@
         GlobalContext.gameId,
         () => GlobalContext.currentUser.completeGame(GlobalContext.gameInProgressKey)
       );
-    }, 100);
+    }, 0);
   }
 
   // src/page.ts
@@ -11594,9 +11593,7 @@
       push(reference(path), data);
     };
     const childAdded = (path, callback) => {
-      console.log("subscribing to children");
       return onChildAdded(reference(path), (snapshot) => {
-        console.log("Child received", snapshot.key, JSON.stringify(snapshot.val()));
         callback(snapshot.val(), snapshot.key);
       });
     };

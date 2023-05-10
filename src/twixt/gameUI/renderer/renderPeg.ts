@@ -19,7 +19,7 @@ export const drawPeg = (pegAnimation: AnimatedPeg, canvas: Canvas, gapSize: numb
     COLORS[pegAnimation.peg.color]
   )
 
-  if (pegAnimation.completion < 1) pegAnimation.completion = nextFrame(pegAnimation.completion)
+  if (pegAnimation.completion < 1) pegAnimation.completion = nextFrame(pegAnimation.completion, ANIMATION_SPEED)
 }
 
 export const pegRadius = (completion: number, animation: (c: number) => number, canvas: Canvas) => {
@@ -34,10 +34,10 @@ const radiusValue = (completion: number): number => {
   }
 }
 
-function easeInOutCubic(x: number): number {
+export function easeInOutCubic(x: number): number {
   return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
 }
 
-function nextFrame(animationFrame: number): number {
-  return Math.min(animationFrame + ANIMATION_SPEED, 1)
+export function nextFrame(animationFrame: number, speed: number): number {
+  return Math.min(animationFrame + speed, 1)
 }

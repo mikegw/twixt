@@ -2,9 +2,9 @@ import { Board, Position } from "../board"
 import { Canvas, Coordinates } from "./canvas";
 import { Color } from "../player";
 import { AnimatedPeg, drawPeg, pegRadius } from "./renderer/renderPeg";
+import { AnimatedConnection, drawConnection } from "./renderer/renderConnection";
 
 const EMPTY_SLOT_RADIUS = 0.003
-const CONNECTION_WIDTH = 0.004
 const BOUNDARY_WIDTH = 0.002
 
 const EMPTY_SLOT_COLOR = '#999'
@@ -24,6 +24,7 @@ export class Renderer {
   board: Board
   padding = BOARD_PADDING
   animatedPegs: AnimatedPeg[] = []
+  animatedConnections: AnimatedConnection[] = []
 
   get slotGapSize() {
     return this.canvas.size / (this.board.size + 2 * this.padding)
@@ -87,23 +88,26 @@ export class Renderer {
 
   private drawConnections() {
     for (let connection of this.board.connections) {
-      this.canvas.drawLine(
-        COLORS[connection.color],
-        this.connectionWidth,
-        this.positionToCoordinates(connection.slots[0].position),
-        this.positionToCoordinates(connection.slots[1].position)
-      )
+      let animatedConnection =
+        this.animatedConnections.find(animated => animated.connection == connection)
+
+      if (!animatedConnection) {
+        animatedConnection = { connection, completion: 0 }
+        this.animatedConnections.push(animatedConnection)
+      }
+
+      drawConnection(animatedConnection, this.canvas, this.slotGapSize)
     }
   }
 
   private drawPegs() {
-    for (let slot of this.board.slots.filter(slot => slot.isOccupied)) {
+    for (let slot of this.board.slots) {
       let animatedPeg = this.animatedPegs.find(animated => animated.peg == slot)
       if (!animatedPeg) {
         animatedPeg = { peg: slot, completion: 0 }
         this.animatedPegs.push(animatedPeg)
       }
-      if (slot.isOccupied) drawPeg(animatedPeg, this.canvas, this.slotGapSize)
+      drawPeg(animatedPeg, this.canvas, this.slotGapSize)
     }
   }
 
@@ -145,10 +149,6 @@ export class Renderer {
 
   private get emptySlotRadius() {
     return Math.ceil(EMPTY_SLOT_RADIUS * this.canvas.size)
-  }
-
-  private get connectionWidth() {
-    return Math.ceil(CONNECTION_WIDTH * this.canvas.size)
   }
 
   private get boundaryWidth() {

@@ -5,7 +5,7 @@ import { GlobalContext } from "../index";
 let userList: UserList
 
 export const JoinOrStart = () => {
-  if (userList) return
+  if (userList !== undefined) return
 
   const userListElement = document.getElementById('users') as HTMLUListElement
   const usernames = new UsernameList(GlobalContext.dataStore)

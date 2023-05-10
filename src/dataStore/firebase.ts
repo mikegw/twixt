@@ -23,15 +23,17 @@ const newDataStore = (environment: string, db: Database): DataStore => {
   }
 
   const childAdded = (path: string, callback: (data: any, key: string) => void) => {
-    onChildAdded(reference(path), snapshot => callback(snapshot.val(), snapshot.key))
+    return onChildAdded(reference(path), snapshot => {
+      callback(snapshot.val(), snapshot.key)
+    })
   }
 
   const childChanged = (path: string, callback: (data: any, key: string) => void) => {
-    onChildChanged(reference(path), snapshot => callback(snapshot.val(), snapshot.key))
+    return onChildChanged(reference(path), snapshot => callback(snapshot.val(), snapshot.key))
   }
 
   const childRemoved = (path: string, callback: (data: any, key: string) => void) => {
-    onChildRemoved(reference(path), snapshot => callback(snapshot.key, snapshot.val()))
+    return onChildRemoved(reference(path), snapshot => callback(snapshot.key, snapshot.val()))
   }
 
   const destroy = (path: string) => {

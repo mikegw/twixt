@@ -17,7 +17,6 @@ import './commands'
 import { dataStore as buildDataStore } from "../../src/dataStore/firebase";
 import { TestDataStore } from "../../src/dataStore";
 
-
 before(function () {
   let defaultConfig = {}
   return cy.readFile('config/default.json')
@@ -31,5 +30,6 @@ before(function () {
 })
 
 beforeEach(function() {
+  window.localStorage.removeItem('twixt-username')
   this.dataStore.clearEnvironment()
 })

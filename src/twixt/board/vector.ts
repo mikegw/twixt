@@ -10,7 +10,7 @@ export const addVectors = (v1: Vector, v2: Vector): Vector => {
   }
 }
 
-const scale = (vector: Vector, scalar: number) => {
+export const scale = (vector: Vector, scalar: number) => {
   return {
     row: vector.row * scalar,
     column: vector.column * scalar

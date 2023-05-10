@@ -1,19 +1,23 @@
-import { GlobalContext } from "../index";
+import { display, GlobalContext, loginUser } from "../index";
 import { User } from "../user";
 import { UsernameList } from "../usernameList";
+import { navigateTo, Pages } from "../page";
 
 export function GetStarted() {
-  const getStartedButton: HTMLButtonElement = document.querySelector('#get-started-button')
+  const getStartedForm: HTMLButtonElement = document.querySelector('#get-started')
   const usernameInput: HTMLInputElement = document.querySelector('input[name="username"]')
 
-  getStartedButton.addEventListener('click', (e) => {
+  getStartedForm.addEventListener('submit', (e) => {
     e.preventDefault()
 
     const username = usernameInput.value
-    GlobalContext.currentUser = new User({ name: username }, GlobalContext.dataStore)
-
     const usernames = new UsernameList(GlobalContext.dataStore)
     usernames.addUser(username)
+
+    loginUser(username)
+    navigateTo(Pages.MainMenu)
+
+    usernameInput.value = ""
   })
 }
 

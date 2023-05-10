@@ -3,6 +3,7 @@ import { DataStore } from "./dataStore";
 
 export class UsernameList {
   dataStore
+  unsubscribeCallbacks: (() => void)[] = []
 
   constructor(dataStore: DataStore) {
     this.dataStore = dataStore
@@ -20,13 +21,19 @@ export class UsernameList {
   }
 
   onUserAdded(callback: (name: string) => void) {
-    this.dataStore.onChildAdded(
+    const unsubscribe = this.dataStore.onChildAdded(
       UsernameList.usernamesPath(),
       (_, name) => callback(name)
     )
+    this.unsubscribeCallbacks.push(unsubscribe)
   }
 
   onUserRemoved(callback: (data: any, key: string) => void) {
-    this.dataStore.onChildRemoved(UsernameList.usernamesPath(), callback)
+    const unsubscribe = this.dataStore.onChildRemoved(UsernameList.usernamesPath(), callback)
+    this.unsubscribeCallbacks.push(unsubscribe)
+  }
+
+  unsubscribe() {
+    this.unsubscribeCallbacks.forEach(unsubscribe => unsubscribe())
   }
 }

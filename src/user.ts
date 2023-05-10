@@ -12,6 +12,7 @@ export type GameInProgress = {
 export class User {
   name
   dataStore
+  unsubscribeCallbacks: (() => void)[] = []
 
   constructor(userData: { name: string }, dataStore: DataStore) {
     this.name = userData.name
@@ -47,20 +48,24 @@ export class User {
   }
 
   onInviteReceived(callback: (invite: Invite, key: string) => void) {
-    this.dataStore.onChildAdded(User.invitesPath(this.name), callback)
+    const unsubscribe = this.dataStore.onChildAdded(User.invitesPath(this.name), callback)
+    this.unsubscribeCallbacks.push(unsubscribe)
   }
 
   acceptInvite(invite: Invite, key: string) {
     this.dataStore.destroy(User.invitePath(this.name, key))
 
     const game = new GameData(this.dataStore)
+
     game.setFirstPlayer(Math.random() > 0.5 ? this.name : invite.name)
+
     this.dataStore.append(User.gamesInProgressPath(this.name),  { gameId: game.id, opponent: invite.name })
     this.dataStore.append(User.gamesInProgressPath(invite.name),  { gameId: game.id, opponent: this.name })
   }
 
   onGameInProgress(callback: (gameInProgress: GameInProgress, key: string) => void) {
-    this.dataStore.onChildAdded(User.gamesInProgressPath(this.name), callback)
+    const unsubscribe = this.dataStore.onChildAdded(User.gamesInProgressPath(this.name), callback)
+    this.unsubscribeCallbacks.push(unsubscribe)
   }
 
   completeGame(key: string) {
@@ -68,7 +73,12 @@ export class User {
   }
 
   onGameCompleted(callback: (gameInProgress: GameInProgress, key: string) => void) {
-    this.dataStore.onChildRemoved(User.gamesInProgressPath(this.name), callback)
+    const unsubscribe = this.dataStore.onChildRemoved(User.gamesInProgressPath(this.name), callback)
+    this.unsubscribeCallbacks.push(unsubscribe)
+  }
+
+  unsubscribe() {
+    this.unsubscribeCallbacks.forEach(unsubscribe => unsubscribe())
   }
 }
 
