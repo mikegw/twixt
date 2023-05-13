@@ -11,8 +11,6 @@ export function GetStarted() {
     e.preventDefault()
 
     const username = usernameInput.value
-    const usernames = new UsernameList(GlobalContext.dataStore)
-    usernames.addUser(username)
 
     loginUser(username)
     navigateTo(Pages.MainMenu)

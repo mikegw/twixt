@@ -33,6 +33,21 @@ describe('Logging in', () => {
     cy.get('h1').contains('Main Menu').should('be.visible')
   })
 
+  it.only('keeps a reference to the logged in user', () => {
+    cy.visit('/')
+
+    cy.get('input[name=username]')
+      .type('User')
+      .type('{enter}')
+
+    cy.visit('/')
+
+    cy.get('button').contains('Play')
+      .click()
+
+    cy.get('li').contains('User').should('not.be.visible')
+  })
+
   it('lets a user log out', () => {
     cy.visit('/')
 

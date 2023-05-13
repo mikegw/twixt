@@ -3,6 +3,7 @@ import { User } from "./user";
 import { FirebaseOptions } from "firebase/app";
 import { dataStore } from "./dataStore/firebase";
 import { DataStore } from "./dataStore";
+import { UsernameList } from "./usernameList";
 
 export type Environment = 'local' | 'test' | 'production'
 
@@ -56,9 +57,14 @@ logoutButton.addEventListener('click', () => {
 })
 
 export const loginUser = (name: string) => {
-  window.localStorage.setItem(USERNAME_STORAGE_KEY, username)
+  console.log('Logging in ', name)
+  window.localStorage.setItem(USERNAME_STORAGE_KEY, name)
 
   GlobalContext.currentUser = new User({ name }, GlobalContext.dataStore)
+
+  const usernames = new UsernameList(GlobalContext.dataStore)
+  usernames.addUser(name)
+
   display(logoutButton)
 }
 
@@ -66,7 +72,8 @@ setupPages()
 
 const username = window.localStorage.getItem(USERNAME_STORAGE_KEY)
 
-if (username) {
+if (username != null) {
+  console.log(username, "logged in")
   loginUser(username)
   navigateTo(Pages.MainMenu)
 } else {

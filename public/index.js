@@ -2,37 +2,6 @@
   // <define:CONFIG>
   var define_CONFIG_default = { firebaseConfig: { apiKey: "AIzaSyBiVEerDSeDFrUaTn8nbY58WAuPr6XtbcQ", authDomain: "mw-twixt.firebaseapp.com", databaseURL: "https://mw-twixt-default-rtdb.firebaseio.com", projectId: "mw-twixt", storageBucket: "mw-twixt.appspot.com", messagingSenderId: "1048357586138", appId: "1:1048357586138:web:652cab4962c73e83e5d1e3", measurementId: "G-2DV7T5RWJB" }, environment: "production" };
 
-  // src/usernameList.ts
-  var UsernameList = class {
-    constructor(dataStore2) {
-      this.unsubscribeCallbacks = [];
-      this.dataStore = dataStore2;
-    }
-    static usernamesPath() {
-      return `userNames`;
-    }
-    static usernamePath(name4) {
-      return UsernameList.usernamesPath() + `/${name4}`;
-    }
-    addUser(name4) {
-      this.dataStore.write(UsernameList.usernamePath(name4), true);
-    }
-    onUserAdded(callback) {
-      const unsubscribe = this.dataStore.onChildAdded(
-        UsernameList.usernamesPath(),
-        (_, name4) => callback(name4)
-      );
-      this.unsubscribeCallbacks.push(unsubscribe);
-    }
-    onUserRemoved(callback) {
-      const unsubscribe = this.dataStore.onChildRemoved(UsernameList.usernamesPath(), callback);
-      this.unsubscribeCallbacks.push(unsubscribe);
-    }
-    unsubscribe() {
-      this.unsubscribeCallbacks.forEach((unsubscribe) => unsubscribe());
-    }
-  };
-
   // src/pages/getStarted.ts
   function GetStarted() {
     const getStartedForm = document.querySelector("#get-started");
@@ -40,8 +9,6 @@
     getStartedForm.addEventListener("submit", (e) => {
       e.preventDefault();
       const username2 = usernameInput.value;
-      const usernames = new UsernameList(GlobalContext.dataStore);
-      usernames.addUser(username2);
       loginUser(username2);
       navigateTo(Pages.MainMenu);
       usernameInput.value = "";
@@ -77,8 +44,8 @@
       });
       this.playGameButton.addEventListener("click", (e) => {
         e.preventDefault();
-        GlobalContext.gameId = this.element.attributes.getNamedItem("game-id").value;
-        GlobalContext.gameInProgressKey = this.element.attributes.getNamedItem("game-in-progress-key").value;
+        GlobalContext2.gameId = this.element.attributes.getNamedItem("game-id").value;
+        GlobalContext2.gameInProgressKey = this.element.attributes.getNamedItem("game-in-progress-key").value;
         navigateTo(Pages.PlayGame);
       });
     }
@@ -88,7 +55,7 @@
   var UserList = class {
     constructor(element, usernames) {
       this.addEventListeners = () => {
-        const user = GlobalContext.currentUser;
+        const user = GlobalContext2.currentUser;
         user.onInviteReceived(this.receiveInvite);
         user.onGameInProgress(this.gameInProgress);
       };
@@ -110,7 +77,7 @@
         userLi.setAttribute("invite", "accepted");
         userLi.setAttribute("game-id", gameId);
         userLi.setAttribute("game-in-progress-key", key);
-        GlobalContext.currentUser.onGameCompleted(({ gameId: gameId2, opponent: opponent2 }, key2) => {
+        GlobalContext2.currentUser.onGameCompleted(({ gameId: gameId2, opponent: opponent2 }, key2) => {
           userLi.removeAttribute("invite");
           userLi.removeAttribute("invite-key");
           userLi.removeAttribute("game-id");
@@ -130,8 +97,8 @@
     }
     populate() {
       this.usernames.onUserAdded((name4) => {
-        console.log(`populate ${name4} for ${GlobalContext.currentUser.name}`);
-        if (GlobalContext.currentUser.name == name4)
+        console.log(`populate ${name4} for ${GlobalContext2.currentUser.name}`);
+        if (GlobalContext2.currentUser.name == name4)
           return;
         const row = this.newRowElement(name4);
         this.element.appendChild(row.element);
@@ -146,9 +113,9 @@
     newRowElement(name4) {
       return new UserRow({
         name: name4,
-        onInvite: () => GlobalContext.currentUser.invite({ name: name4 }),
+        onInvite: () => GlobalContext2.currentUser.invite({ name: name4 }),
         onAcceptInvite: (key) => {
-          GlobalContext.currentUser.acceptInvite({ name: name4 }, key);
+          GlobalContext2.currentUser.acceptInvite({ name: name4 }, key);
         }
       });
     }
@@ -167,13 +134,44 @@
     }
   };
 
+  // src/usernameList.ts
+  var UsernameList = class {
+    constructor(dataStore2) {
+      this.unsubscribeCallbacks = [];
+      this.dataStore = dataStore2;
+    }
+    static usernamesPath() {
+      return `userNames`;
+    }
+    static usernamePath(name4) {
+      return UsernameList.usernamesPath() + `/${name4}`;
+    }
+    addUser(name4) {
+      this.dataStore.write(UsernameList.usernamePath(name4), true);
+    }
+    onUserAdded(callback) {
+      const unsubscribe = this.dataStore.onChildAdded(
+        UsernameList.usernamesPath(),
+        (_, name4) => callback(name4)
+      );
+      this.unsubscribeCallbacks.push(unsubscribe);
+    }
+    onUserRemoved(callback) {
+      const unsubscribe = this.dataStore.onChildRemoved(UsernameList.usernamesPath(), callback);
+      this.unsubscribeCallbacks.push(unsubscribe);
+    }
+    unsubscribe() {
+      this.unsubscribeCallbacks.forEach((unsubscribe) => unsubscribe());
+    }
+  };
+
   // src/pages/joinOrStart.ts
   var userList;
   var JoinOrStart = () => {
     if (userList !== void 0)
       return;
     const userListElement = document.getElementById("users");
-    const usernames = new UsernameList(GlobalContext.dataStore);
+    const usernames = new UsernameList(GlobalContext2.dataStore);
     userList = new UserList(userListElement, usernames);
   };
 
@@ -375,7 +373,7 @@
         this.propagateToNeighbors(this.board.slotAt(position), "isConnectedToStart");
       }
       if ([this.board.slotAt(position), ...neighboringSlotsWithColor].some((slot2) => slot2.isConnectedToEnd)) {
-        this.propagateToNeighbors(this.board.slotAt(position), "isConnectedToStart");
+        this.propagateToNeighbors(this.board.slotAt(position), "isConnectedToEnd");
       }
       return connections.filter(Boolean);
     }
@@ -761,10 +759,10 @@
     canvas.clear();
     setTimeout(() => {
       startGame(
-        GlobalContext.dataStore,
-        GlobalContext.currentUser.name,
-        GlobalContext.gameId,
-        () => GlobalContext.currentUser.completeGame(GlobalContext.gameInProgressKey)
+        GlobalContext2.dataStore,
+        GlobalContext2.currentUser.name,
+        GlobalContext2.gameId,
+        () => GlobalContext2.currentUser.completeGame(GlobalContext2.gameInProgressKey)
       );
     }, 0);
   }
@@ -802,7 +800,7 @@
   var navigateTo = (page) => {
     for (let otherPage of Object.values(Pages))
       hide(otherPage);
-    GlobalContext.currentPage = page;
+    GlobalContext2.currentPage = page;
     page.setup();
     display2(page);
   };
@@ -11649,7 +11647,7 @@
     let htmlElement = isHTMLElement(element) ? element : document.getElementById(element.id);
     htmlElement.classList.add("hidden");
   };
-  var GlobalContext = {
+  var GlobalContext2 = {
     currentPage: Pages.GetStarted,
     currentUser: null,
     gameId: null,
@@ -11659,18 +11657,22 @@
   var USERNAME_STORAGE_KEY = "twixt-username";
   var logoutButton = document.querySelector(".log-out-button");
   logoutButton.addEventListener("click", () => {
-    GlobalContext.currentUser.unsubscribe();
+    GlobalContext2.currentUser.unsubscribe();
     window.localStorage.removeItem(USERNAME_STORAGE_KEY);
     window.location.reload();
   });
   var loginUser = (name4) => {
-    window.localStorage.setItem(USERNAME_STORAGE_KEY, username);
-    GlobalContext.currentUser = new User({ name: name4 }, GlobalContext.dataStore);
+    console.log("Logging in ", name4);
+    window.localStorage.setItem(USERNAME_STORAGE_KEY, name4);
+    GlobalContext2.currentUser = new User({ name: name4 }, GlobalContext2.dataStore);
+    const usernames = new UsernameList(GlobalContext2.dataStore);
+    usernames.addUser(name4);
     display2(logoutButton);
   };
   setupPages();
   var username = window.localStorage.getItem(USERNAME_STORAGE_KEY);
-  if (username) {
+  if (username != null) {
+    console.log(username, "logged in");
     loginUser(username);
     navigateTo(Pages.MainMenu);
   } else {

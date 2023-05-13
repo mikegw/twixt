@@ -56,7 +56,7 @@ export class Game {
     }
 
     if ([this.board.slotAt(position), ...neighboringSlotsWithColor].some(slot => slot.isConnectedToEnd)) {
-      this.propagateToNeighbors(this.board.slotAt(position), 'isConnectedToStart')
+      this.propagateToNeighbors(this.board.slotAt(position), 'isConnectedToEnd')
     }
 
     return connections.filter(Boolean);
