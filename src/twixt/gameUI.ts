@@ -14,6 +14,8 @@ export class GameUI {
   color: Color
   currentPlayerSpan: HTMLSpanElement
   playerStatusSpan: HTMLSpanElement
+  confirmButton: HTMLButtonElement
+  moveInProgress: Position
   onComplete: () => void
 
   constructor(game: Game, gameData: GameData, player: string, onComplete: () => void) {
@@ -23,6 +25,8 @@ export class GameUI {
     this.renderer = new Renderer(this.canvas, this.game.board)
     this.currentPlayerSpan = document.getElementById('current-player')
     this.playerStatusSpan = document.getElementById('player-status')
+    this.confirmButton = document.getElementById('game-confirm') as HTMLButtonElement
+
     this.onComplete = onComplete
 
     const playerColorSpan = document.getElementById('player-color')
@@ -44,6 +48,12 @@ export class GameUI {
     this.gameData.subscribe(this.moveMade)
     this.canvas.whenClicked(cursorPosition => this.canvasClicked(cursorPosition))
 
+    const newConfirmButton = this.confirmButton.cloneNode(true) as HTMLButtonElement
+    this.confirmButton.replaceWith(newConfirmButton)
+    this.confirmButton = newConfirmButton
+
+    this.confirmButton.addEventListener('click', this.moveConfirmed)
+
     this.renderer.draw()
   }
 
@@ -56,12 +66,27 @@ export class GameUI {
     }
 
     console.log(positionClicked)
-    this.gameData.write(positionClicked)
+    this.moveInProgress = positionClicked
+    this.game.placePeg(positionClicked)
+    this.render()
+    this.confirmButton.disabled = false
+    console.log('Confirm button active')
+  }
+
+  moveConfirmed = () => {
+    console.log('Move confirmed')
+    this.gameData.write(this.moveInProgress)
+    this.confirmButton.disabled = true
+    console.log('Confirm button deactivated')
   }
 
   moveMade = (position: Position) => {
     console.debug(`Move made by ${this.game.currentPlayer.color}: { row: ${position.row}, column: ${position.column} }`)
-    this.game.placePeg(position as Position)
+    if (this.moveInProgress) {
+      this.moveInProgress = null
+    } else {
+      this.game.placePeg(position as Position)
+    }
     this.render()
     if (this.game.winner) {
       this.playerStatusSpan.innerText = 'wins!'
@@ -89,5 +114,9 @@ export class GameUI {
   private setPlayerColor(span: HTMLSpanElement, color: Color) {
     span.innerText = color
     span.setAttribute('color', color)
+  }
+
+  private toggleConfirmButton() {
+    this.confirmButton
   }
 }

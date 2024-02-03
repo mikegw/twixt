@@ -111,10 +111,6 @@ export class Renderer {
     }
   }
 
-  private slotsToDraw() {
-    return this.board.slots.filter(slot => slot.isOccupied)
-  }
-
   private highlightLastPegDrawn() {
     const lastPegDrawn = this.animatedPegs[this.animatedPegs.length - 1]
     if(!lastPegDrawn) return

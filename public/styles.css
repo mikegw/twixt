@@ -167,6 +167,10 @@ button:disabled {
     float: right;
 }
 
+.icon-button:disabled {
+    opacity: 0.2;
+}
+
 .icon-button:not(:disabled):hover,
 .icon-button:not(:disabled):focus {
     background: none;
@@ -239,22 +243,29 @@ li.player[invite="accepted"] .play-game {
     width: 1px;
 }
 
-.back-button, .log-out-button {
+.back-button, .confirm-button, .log-out-button {
     position: fixed;
-    top: 1em;
     height: 2em;
     width: 2em;
+}
+
+.back-button, .log-out-button {
+    top: 1em;
 }
 
 .back-button {
     left: 1em;
 }
 
-.log-out-button {
+.log-out-button, .confirm-button {
     right: 2em;
 }
 
-.back-button svg, .log-out-button svg {
+.confirm-button {
+    bottom: 2em;
+}
+
+.back-button svg, .log-out-button svg, .confirm-button svg {
     height: 1.5em;
     width: 1.5em;
 }

@@ -8,8 +8,8 @@
   "license": "MIT",
   "scripts": {
     "build": "node scripts/build.mjs --sourcemap",
-    "build:test":  "node scripts/build.mjs --sourcemap --env=test",
-    "build:prod":  "node scripts/build.mjs --env=production",
+    "build:test": "node scripts/build.mjs --sourcemap --env=test",
+    "build:prod": "node scripts/build.mjs --env=production",
     "cypress:start": "yarn run build:test && yarn run cypress open",
     "test": "mocha -r ts-node/register 'test/**/*.ts'",
     "test:feature": "yarn run cypress run",

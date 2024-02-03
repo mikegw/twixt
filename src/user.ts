@@ -1,5 +1,6 @@
 import { GameData } from "./twixt/gameData";
 import { DataStore } from "./dataStore";
+import { Coin } from "./coin";
 
 export type Invite = {
   name: string
@@ -57,7 +58,7 @@ export class User {
 
     const game = new GameData(this.dataStore)
 
-    game.setFirstPlayer(Math.random() > 0.5 ? this.name : invite.name)
+    game.setFirstPlayer(Coin.toss() === Coin.Heads ? this.name : invite.name)
 
     this.dataStore.append(User.gamesInProgressPath(this.name),  { gameId: game.id, opponent: invite.name })
     this.dataStore.append(User.gamesInProgressPath(invite.name),  { gameId: game.id, opponent: this.name })
@@ -81,5 +82,3 @@ export class User {
     this.unsubscribeCallbacks.forEach(unsubscribe => unsubscribe())
   }
 }
-
-

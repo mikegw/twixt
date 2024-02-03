@@ -3,7 +3,7 @@ import { parseMove } from "../../src/twixt/parse";
 
 describe('Playing a game', () => {
   it('allows player to move', () => {
-    cy.startGameBetween('player1', 'player2')
+    cy.startGameBetween('player1', 'player2', true)
 
     cy.playMoves('player2', 'C4,D8,D6,B2').then(() => {
       cy.pegAt('C4').should("eq", Color.Red)
@@ -14,7 +14,8 @@ describe('Playing a game', () => {
   })
 
   it('expects players to confirm moves', () => {
-    cy.startGameBetween('player1', 'player2') // hmm will need to figure out how to play as red so I can immediately play a move
-    cy.playMove(parseMove('B2'), Color.Red)
+    cy.startGameBetween('player1', 'player2', true)
+    cy.playMove(parseMove('B2'), Color.Red, false)
+    cy.currentPlayer().should("eq", Color.Red)
   })
 })

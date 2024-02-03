@@ -1,6 +1,6 @@
 (() => {
   // <define:CONFIG>
-  var define_CONFIG_default = { firebaseConfig: { apiKey: "AIzaSyBiVEerDSeDFrUaTn8nbY58WAuPr6XtbcQ", authDomain: "mw-twixt.firebaseapp.com", databaseURL: "https://mw-twixt-default-rtdb.firebaseio.com", projectId: "mw-twixt", storageBucket: "mw-twixt.appspot.com", messagingSenderId: "1048357586138", appId: "1:1048357586138:web:652cab4962c73e83e5d1e3", measurementId: "G-2DV7T5RWJB" }, environment: "production" };
+  var define_CONFIG_default = { firebaseConfig: { apiKey: "AIzaSyBiVEerDSeDFrUaTn8nbY58WAuPr6XtbcQ", authDomain: "mw-twixt.firebaseapp.com", databaseURL: "https://mw-twixt-default-rtdb.firebaseio.com", projectId: "mw-twixt", storageBucket: "mw-twixt.appspot.com", messagingSenderId: "1048357586138", appId: "1:1048357586138:web:652cab4962c73e83e5d1e3", measurementId: "G-2DV7T5RWJB" }, environment: "test" };
 
   // src/pages/getStarted.ts
   function GetStarted() {
@@ -233,6 +233,9 @@
   };
 
   // src/twixt/board.ts
+  function isPosition(data) {
+    return "row" in data && "column" in data;
+  }
   var BOARD_SIZE = 18;
   var _Board = class {
     constructor(size = BOARD_SIZE) {
@@ -393,10 +396,16 @@
     }
   };
 
+  // src/generateId.ts
+  var generateId = () => {
+    const firstPart = Math.random() * 46656 | 0;
+    const secondPart = Math.random() * 46656 | 0;
+    const firstPartString = ("000" + firstPart.toString(36)).slice(-3);
+    const secondPartString = ("000" + secondPart.toString(36)).slice(-3);
+    return firstPartString + secondPartString;
+  };
+
   // src/twixt/gameData.ts
-  function isPosition(data) {
-    return "row" in data && "column" in data;
-  }
   var GameData = class {
     get gamePath() {
       return `games/${this.id}`;
@@ -409,7 +418,7 @@
     }
     constructor(dataStore2, id) {
       this.dataStore = dataStore2;
-      this.id = id || GameData.generateGameId();
+      this.id = id || generateId();
     }
     subscribe(callback) {
       this.dataStore.onChildAdded(this.movesPath, (data) => {
@@ -425,13 +434,6 @@
     }
     getFirstPlayer(callback) {
       this.dataStore.read(this.firstPlayerPath, callback);
-    }
-    static generateGameId() {
-      const firstPart = Math.random() * 46656 | 0;
-      const secondPart = Math.random() * 46656 | 0;
-      const firstPartString = ("000" + firstPart.toString(36)).slice(-3);
-      const secondPartString = ("000" + secondPart.toString(36)).slice(-3);
-      return firstPartString + secondPartString;
     }
   };
 
@@ -569,9 +571,6 @@
         drawPeg(animatedPeg, this.canvas, this.slotGapSize);
       }
     }
-    slotsToDraw() {
-      return this.board.slots.filter((slot) => slot.isOccupied);
-    }
     highlightLastPegDrawn() {
       const lastPegDrawn = this.animatedPegs[this.animatedPegs.length - 1];
       if (!lastPegDrawn)
@@ -690,11 +689,25 @@
           column: Math.floor(cursorPosition.x / this.slotGapSize) - BOARD_PADDING
         };
         console.log(positionClicked);
-        this.gameData.write(positionClicked);
+        this.moveInProgress = positionClicked;
+        this.game.placePeg(positionClicked);
+        this.render();
+        this.confirmButton.disabled = false;
+        console.log("Confirm button active");
+      };
+      this.moveConfirmed = () => {
+        console.log("Move confirmed");
+        this.gameData.write(this.moveInProgress);
+        this.confirmButton.disabled = true;
+        console.log("Confirm button deactivated");
       };
       this.moveMade = (position) => {
         console.debug(`Move made by ${this.game.currentPlayer.color}: { row: ${position.row}, column: ${position.column} }`);
-        this.game.placePeg(position);
+        if (this.moveInProgress) {
+          this.moveInProgress = null;
+        } else {
+          this.game.placePeg(position);
+        }
         this.render();
         if (this.game.winner) {
           this.playerStatusSpan.innerText = "wins!";
@@ -715,6 +728,7 @@
       this.renderer = new Renderer(this.canvas, this.game.board);
       this.currentPlayerSpan = document.getElementById("current-player");
       this.playerStatusSpan = document.getElementById("player-status");
+      this.confirmButton = document.getElementById("game-confirm");
       this.onComplete = onComplete;
       const playerColorSpan = document.getElementById("player-color");
       gameData.getFirstPlayer((firstPlayer) => {
@@ -730,6 +744,10 @@
       document.addEventListener("DOMContentLoaded", this.windowResized);
       this.gameData.subscribe(this.moveMade);
       this.canvas.whenClicked((cursorPosition) => this.canvasClicked(cursorPosition));
+      const newConfirmButton = this.confirmButton.cloneNode(true);
+      this.confirmButton.replaceWith(newConfirmButton);
+      this.confirmButton = newConfirmButton;
+      this.confirmButton.addEventListener("click", this.moveConfirmed);
       this.renderer.draw();
     }
     render() {
@@ -741,6 +759,9 @@
     setPlayerColor(span, color) {
       span.innerText = color;
       span.setAttribute("color", color);
+    }
+    toggleConfirmButton() {
+      this.confirmButton;
     }
   };
 
@@ -820,6 +841,13 @@
     }
   };
 
+  // src/coin.ts
+  var Coin = {
+    Heads: "HEADS",
+    Tails: "TAILS",
+    toss: () => Math.random() > 0.5 ? "HEADS" : "TAILS"
+  };
+
   // src/user.ts
   var User = class {
     constructor(userData, dataStore2) {
@@ -855,7 +883,7 @@
     acceptInvite(invite, key) {
       this.dataStore.destroy(User.invitePath(this.name, key));
       const game = new GameData(this.dataStore);
-      game.setFirstPlayer(Math.random() > 0.5 ? this.name : invite.name);
+      game.setFirstPlayer(Coin.toss() === Coin.Heads ? this.name : invite.name);
       this.dataStore.append(User.gamesInProgressPath(this.name), { gameId: game.id, opponent: invite.name });
       this.dataStore.append(User.gamesInProgressPath(invite.name), { gameId: game.id, opponent: this.name });
     }
@@ -2114,7 +2142,7 @@
     }
   };
 
-  // node_modules/idb/build/wrap-idb-value.js
+  // node_modules/@firebase/app/node_modules/idb/build/wrap-idb-value.js
   var instanceOfAny = (object, constructors) => constructors.some((c) => object instanceof c);
   var idbProxyableTypes;
   var cursorAdvanceMethods;
@@ -2257,22 +2285,29 @@
   }
   var unwrap = (value) => reverseTransformCache.get(value);
 
-  // node_modules/idb/build/index.js
+  // node_modules/@firebase/app/node_modules/idb/build/index.js
   function openDB(name4, version4, { blocked, upgrade, blocking, terminated } = {}) {
     const request = indexedDB.open(name4, version4);
     const openPromise = wrap(request);
     if (upgrade) {
       request.addEventListener("upgradeneeded", (event) => {
-        upgrade(wrap(request.result), event.oldVersion, event.newVersion, wrap(request.transaction));
+        upgrade(wrap(request.result), event.oldVersion, event.newVersion, wrap(request.transaction), event);
       });
     }
-    if (blocked)
-      request.addEventListener("blocked", () => blocked());
+    if (blocked) {
+      request.addEventListener("blocked", (event) => blocked(
+        // Casting due to https://github.com/microsoft/TypeScript-DOM-lib-generator/pull/1405
+        event.oldVersion,
+        event.newVersion,
+        event
+      ));
+    }
     openPromise.then((db) => {
       if (terminated)
         db.addEventListener("close", () => terminated());
-      if (blocking)
-        db.addEventListener("versionchange", () => blocking());
+      if (blocking) {
+        db.addEventListener("versionchange", (event) => blocking(event.oldVersion, event.newVersion, event));
+      }
     }).catch(() => {
     });
     return openPromise;
@@ -2338,7 +2373,7 @@
     return (component === null || component === void 0 ? void 0 : component.type) === "VERSION";
   }
   var name$o = "@firebase/app";
-  var version$1 = "0.9.7";
+  var version$1 = "0.9.13";
   var logger = new Logger("@firebase/app");
   var name$n = "@firebase/app-compat";
   var name$m = "@firebase/analytics-compat";
@@ -2364,7 +2399,7 @@
   var name$2 = "@firebase/firestore";
   var name$1 = "@firebase/firestore-compat";
   var name = "firebase";
-  var version = "9.19.1";
+  var version = "9.23.0";
   var DEFAULT_ENTRY_NAME2 = "[DEFAULT]";
   var PLATFORM_LOG_STRING = {
     [name$o]: "fire-core",
@@ -2426,7 +2461,7 @@
     [
       "no-app"
       /* AppError.NO_APP */
-    ]: "No Firebase App '{$appName}' has been created - call Firebase App.initializeApp()",
+    ]: "No Firebase App '{$appName}' has been created - call initializeApp() first",
     [
       "bad-app-name"
       /* AppError.BAD_APP_NAME */
@@ -2562,7 +2597,7 @@
   }
   function getApp(name4 = DEFAULT_ENTRY_NAME2) {
     const app = _apps.get(name4);
-    if (!app && name4 === DEFAULT_ENTRY_NAME2) {
+    if (!app && name4 === DEFAULT_ENTRY_NAME2 && getDefaultAppConfig()) {
       return initializeApp();
     }
     if (!app) {
@@ -2625,7 +2660,8 @@
   async function readHeartbeatsFromIndexedDB(app) {
     try {
       const db = await getDbPromise();
-      return db.transaction(STORE_NAME).objectStore(STORE_NAME).get(computeKey(app));
+      const result = await db.transaction(STORE_NAME).objectStore(STORE_NAME).get(computeKey(app));
+      return result;
     } catch (e) {
       if (e instanceof FirebaseError) {
         logger.warn(e.message);
@@ -2643,7 +2679,7 @@
       const tx = db.transaction(STORE_NAME, "readwrite");
       const objectStore = tx.objectStore(STORE_NAME);
       await objectStore.put(heartbeatObject, computeKey(app));
-      return tx.done;
+      await tx.done;
     } catch (e) {
       if (e instanceof FirebaseError) {
         logger.warn(e.message);
@@ -2840,7 +2876,7 @@
 
   // node_modules/firebase/app/dist/esm/index.esm.js
   var name2 = "firebase";
-  var version2 = "9.19.1";
+  var version2 = "9.23.0";
   registerVersion(name2, version2, "app");
 
   // node_modules/@firebase/database/dist/index.esm2017.js
@@ -11634,6 +11670,96 @@
     }
   };
 
+  // src/dataStore/localDataStore/node.ts
+  var buildNode = (data) => {
+    const callbacks = {};
+    const callbacksOfType = (type) => {
+      return Object.values(callbacks).filter((withType) => withType.type == "childAdded").map((callbackWithType) => callbackWithType.callback);
+    };
+    return {
+      key: generateId(),
+      data,
+      children: {},
+      callbacks,
+      callbacksOfType
+    };
+  };
+
+  // src/dataStore/localDataStore.ts
+  var deleteItem = (obj, key) => {
+    obj[key] = void 0;
+  };
+  var newDataStore2 = () => {
+    const storageTree = buildNode();
+    const getBranch = (path, create = false) => {
+      const nodePath = path.split("/");
+      let node = storageTree;
+      const branch = [{ fragment: "", node, created: false }];
+      for (let fragment of nodePath) {
+        const nextNode = node.children[fragment];
+        if (nextNode) {
+          branch.push({ fragment, node: nextNode, created: false });
+        } else {
+          if (!create)
+            return null;
+          const newNode = buildNode();
+          node.children[fragment] = newNode;
+          branch.push({ fragment, node: newNode, created: true });
+        }
+      }
+      return branch;
+    };
+    const read = (path, callback) => {
+      const branch = getBranch(path);
+      if (!branch)
+        return callback(null, null);
+      const { node } = branch.pop();
+      callback(node.data, node.key);
+    };
+    const write = (path, data) => {
+      const branch = getBranch(path, true);
+      branch[branch.length - 1].node.data = data;
+      const firstNewNodeIndex = branch.findIndex((nodeWithCreated) => nodeWithCreated.created);
+      if (firstNewNodeIndex < 0)
+        return;
+      const newNode = branch[firstNewNodeIndex].node;
+      console.log("New Node:", newNode);
+      const lastExistingNode = branch[firstNewNodeIndex - 1].node;
+      const childAddedCallbacks = lastExistingNode.callbacksOfType("childAdded");
+      for (let callback of childAddedCallbacks)
+        callback(newNode.data, newNode.key);
+    };
+    const append = (path, data) => {
+      write(`${path}/${generateId()}`, data);
+    };
+    const destroy = (path) => {
+      const branch = getBranch(path);
+      if (branch) {
+        const [parent, child2] = branch.slice(-2);
+        deleteItem(parent.node.children, child2.fragment);
+      }
+      return new Promise((resolve) => resolve());
+    };
+    const onCallback = (type) => {
+      return (path, callback) => {
+        const branch = getBranch(path, true);
+        const node = branch.pop().node;
+        const callbackId = generateId();
+        node.callbacks[callbackId] = { type, callback };
+        return () => deleteItem(node.callbacks, callbackId);
+      };
+    };
+    return {
+      read,
+      write,
+      append,
+      destroy,
+      onChildAdded: onCallback("childAdded"),
+      onChildChanged: onCallback("childChanged"),
+      onChildRemoved: onCallback("childRemoved")
+    };
+  };
+
   // src/index.ts
   var config = define_CONFIG_default;
   function isHTMLElement(element) {
@@ -11678,6 +11804,7 @@
   } else {
     navigateTo(Pages.GetStarted);
   }
+  window.newDataStore = newDataStore2();
 })();
 /*! Bundled license information:
 
@@ -12365,3 +12492,4 @@ firebase/app/dist/esm/index.esm.js:
    * limitations under the License.
    *)
 */
+//# sourceMappingURL=index.js.map

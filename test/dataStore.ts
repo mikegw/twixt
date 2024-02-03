@@ -1,6 +1,6 @@
 import { expect } from "chai";
 import { newDataStore } from "../src/dataStore/localDataStore";
-import {Callback} from "../src/dataStore";
+import { Callback } from "../src/dataStore";
 
 describe('Data Storage', () => {
   it('can store data', () => {

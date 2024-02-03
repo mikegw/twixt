@@ -12,13 +12,15 @@ declare global {
 
       startGameWith(username: string): Chainable<any>
 
-      startGameBetween(player1: string, player2: string): Chainable<any>
+      startGameBetween(player1: string, player2: string, firstPlayer?: boolean): Chainable<any>
 
       playMoves(opponent: string, moves: string): Chainable<any>
 
       playMove(move: Position, color: Color, confirm?: boolean): Chainable<any>
 
       pegAt(rawPosition: string): Chainable<any>
+
+      currentPlayer(): Chainable<any>
     }
   }
 }
