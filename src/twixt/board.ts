@@ -5,6 +5,10 @@ import { Color } from "./player";
 
 export type Position = Vector
 
+export function isPosition(data: object): data is Position {
+  return 'row' in data && 'column' in data
+}
+
 export const BOARD_SIZE = 18
 
 export class Board {

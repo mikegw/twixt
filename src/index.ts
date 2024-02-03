@@ -4,6 +4,7 @@ import { FirebaseOptions } from "firebase/app";
 import { dataStore } from "./dataStore/firebase";
 import { DataStore } from "./dataStore";
 import { UsernameList } from "./usernameList";
+import {newDataStore} from "./dataStore/localDataStore";
 
 export type Environment = 'local' | 'test' | 'production'
 
@@ -80,4 +81,4 @@ if (username != null) {
   navigateTo(Pages.GetStarted)
 }
 
-
+(window as any).newDataStore = newDataStore()
