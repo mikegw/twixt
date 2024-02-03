@@ -1,6 +1,6 @@
 (() => {
   // <define:CONFIG>
-  var define_CONFIG_default = { firebaseConfig: { apiKey: "AIzaSyBiVEerDSeDFrUaTn8nbY58WAuPr6XtbcQ", authDomain: "mw-twixt.firebaseapp.com", databaseURL: "https://mw-twixt-default-rtdb.firebaseio.com", projectId: "mw-twixt", storageBucket: "mw-twixt.appspot.com", messagingSenderId: "1048357586138", appId: "1:1048357586138:web:652cab4962c73e83e5d1e3", measurementId: "G-2DV7T5RWJB" }, environment: "test" };
+  var define_CONFIG_default = { firebaseConfig: { apiKey: "AIzaSyBiVEerDSeDFrUaTn8nbY58WAuPr6XtbcQ", authDomain: "mw-twixt.firebaseapp.com", databaseURL: "https://mw-twixt-default-rtdb.firebaseio.com", projectId: "mw-twixt", storageBucket: "mw-twixt.appspot.com", messagingSenderId: "1048357586138", appId: "1:1048357586138:web:652cab4962c73e83e5d1e3", measurementId: "G-2DV7T5RWJB" }, environment: "production" };
 
   // src/pages/getStarted.ts
   function GetStarted() {
@@ -12492,4 +12492,3 @@ firebase/app/dist/esm/index.esm.js:
    * limitations under the License.
    *)
 */
-//# sourceMappingURL=index.js.map
