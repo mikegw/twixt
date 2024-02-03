@@ -46,6 +46,10 @@ export class Board {
     return slot
   }
 
+  removePeg(color: Color, position: Position) {
+    return removeMatchingElements(this.slots, slot => slot.color == color && sameVectors(slot.position, position))[0]
+  }
+
   connect(color: Color, slots: [Slot, Slot]): Connection {
     const connection = new Connection(color, slots)
     if(!this.isValidConnection(connection)) return null;
@@ -53,6 +57,14 @@ export class Board {
     this.connections.push(connection)
 
     return connection
+  }
+
+  disconnect(color: Color, positions: [Position, Position]) {
+    return removeMatchingElements(this.connections, connection => {
+      const connectionSlotPositions = connection.slots.map((slot: Slot) => slot.position)
+
+      return connection.color == color && samePositions(positions, connectionSlotPositions)
+    })
   }
 
   slotAt = (position: Position): Slot | null => {
@@ -103,4 +115,20 @@ export class Board {
     const potentialNeighbors = Board.neighborDiffs.map(diff => addVectors(position, diff))
     return potentialNeighbors.filter(this.isValidPosition)
   }
+}
+
+const removeMatchingElements = (array: any[], predicate: (element: any) => boolean) => {
+  let index
+  const removed = []
+  while ((index = array.findIndex(predicate)) >= 0) {
+    removed.push(array[index])
+    array.splice(index, 1)
+  }
+  return removed
+}
+
+const samePositions = (positions1: Position[], positions2: Position[]) => {
+  if (positions1.length != positions2.length) return false
+
+  return positions2.every(p2 => positions1.some(p1 => sameVectors(p1, p2)))
 }

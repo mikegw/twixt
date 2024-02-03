@@ -18,4 +18,14 @@ describe('Playing a game', () => {
     cy.playMove(parseMove('B2'), Color.Red, false)
     cy.currentPlayer().should("eq", Color.Red)
   })
+
+  it('allows players to change moves before confirming', () => {
+    cy.startGameBetween('player1', 'player2', true)
+    cy.playMove(parseMove('B2'), Color.Red, false)
+    cy.playMove(parseMove('B3'), Color.Red, false).then(() => {
+      cy.pegAt('B2').should("be.null")
+      cy.pegAt('B3').should("eq", Color.Red)
+      cy.currentPlayer().should("eq", Color.Red)
+    })
+  })
 })

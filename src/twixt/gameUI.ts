@@ -52,28 +52,33 @@ export class GameUI {
     this.confirmButton.replaceWith(newConfirmButton)
     this.confirmButton = newConfirmButton
 
-    this.confirmButton.addEventListener('click', this.moveConfirmed)
+    this.confirmButton.addEventListener('click', this.confirmMove)
 
     this.renderer.draw()
   }
 
   canvasClicked = (cursorPosition: Coordinates) => {
-    if (this.game.currentPlayer.color != this.color) return
+    if (this.game.currentPlayer.color != this.color && !this.moveInProgress) return
 
     const positionClicked: Position = {
       row: Math.floor(cursorPosition.y / this.slotGapSize) - BOARD_PADDING,
       column:  Math.floor(cursorPosition.x / this.slotGapSize) - BOARD_PADDING
     }
 
-    console.log(positionClicked)
+    console.log("Position Clicked: ", positionClicked)
+    if (this.moveInProgress) this.game.removePeg(this.moveInProgress)
+
+    const peg = this.game.placePeg(positionClicked)
+    if (!peg.slot) return
+
     this.moveInProgress = positionClicked
-    this.game.placePeg(positionClicked)
     this.render()
+
     this.confirmButton.disabled = false
     console.log('Confirm button active')
   }
 
-  moveConfirmed = () => {
+  confirmMove = () => {
     console.log('Move confirmed')
     this.gameData.write(this.moveInProgress)
     this.confirmButton.disabled = true

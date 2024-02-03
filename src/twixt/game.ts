@@ -14,6 +14,10 @@ export class Game {
     return this.players[this.currentPlayerIndex]
   }
 
+  get waitingPlayer() {
+    return this.players[this.waitingPlayerIndex]
+  }
+
   get winner(): Color {
     const slotsToCheck = this.board.slots.filter(slot => slot.isOccupied)
     const winningSlot = slotsToCheck.find(slot => slot.isConnectedToStart && slot.isConnectedToEnd)
@@ -40,6 +44,19 @@ export class Game {
     this.endTurn()
 
     return { slot, connectionsAdded: connections }
+  }
+
+  removePeg(position: Position) {
+    const removed = this.board.removePeg(this.waitingPlayer.color, position)
+    if (!removed) return
+
+    this.moves.push(position)
+    const neighboringSlots = this.board.neighboringSlots(position)
+    for (let neighbor of neighboringSlots) {
+      this.board.disconnect(this.waitingPlayer.color,[position, neighbor.position])
+    }
+
+    this.endTurn()
   }
 
   private addConnections(position: Position, slot: Slot) {
@@ -83,12 +100,22 @@ export class Game {
   }
 
   endTurn() {
-    this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length
+    this.currentPlayerIndex = this.waitingPlayerIndex
+  }
+
+  private get waitingPlayerIndex() {
+    return (this.currentPlayerIndex + 1) % this.players.length
   }
 
   parse(rawMoves: string) {
     const positions = parseMoves(rawMoves)
-    for (let position of positions) this.placePeg(position)
+    for (let position of positions) {
+      if (this.board.slotAt(position)) {
+        this.removePeg(position)
+      } else {
+        this.placePeg(position)
+      }
+    }
   }
 
   get serialize() {
@@ -100,4 +127,3 @@ type PlacePegResult = {
   slot: Slot,
   connectionsAdded: any[]
 }
-

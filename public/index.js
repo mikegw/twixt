@@ -268,12 +268,21 @@
       this.slots.push(slot);
       return slot;
     }
+    removePeg(color, position) {
+      return removeMatchingElements(this.slots, (slot) => slot.color == color && sameVectors(slot.position, position))[0];
+    }
     connect(color, slots) {
       const connection = new Connection(color, slots);
       if (!this.isValidConnection(connection))
         return null;
       this.connections.push(connection);
       return connection;
+    }
+    disconnect(color, positions) {
+      return removeMatchingElements(this.connections, (connection) => {
+        const connectionSlotPositions = connection.slots.map((slot) => slot.position);
+        return connection.color == color && samePositions(positions, connectionSlotPositions);
+      });
     }
     neighboringSlots(position) {
       return this.neighboringPositions(position).map(this.slotAt).filter((slot) => slot);
@@ -305,6 +314,20 @@
     { row: -1, column: -2 },
     { row: -2, column: -1 }
   ];
+  var removeMatchingElements = (array, predicate) => {
+    let index;
+    const removed = [];
+    while ((index = array.findIndex(predicate)) >= 0) {
+      removed.push(array[index]);
+      array.splice(index, 1);
+    }
+    return removed;
+  };
+  var samePositions = (positions1, positions2) => {
+    if (positions1.length != positions2.length)
+      return false;
+    return positions2.every((p2) => positions1.some((p1) => sameVectors(p1, p2)));
+  };
 
   // src/twixt/parse.ts
   var parseMoves = (rawMovesString) => {
@@ -348,6 +371,9 @@
     get currentPlayer() {
       return this.players[this.currentPlayerIndex];
     }
+    get waitingPlayer() {
+      return this.players[this.waitingPlayerIndex];
+    }
     get winner() {
       const slotsToCheck = this.board.slots.filter((slot) => slot.isOccupied);
       const winningSlot = slotsToCheck.find((slot) => slot.isConnectedToStart && slot.isConnectedToEnd);
@@ -368,6 +394,17 @@
       this.endTurn();
       return { slot, connectionsAdded: connections };
     }
+    removePeg(position) {
+      const removed = this.board.removePeg(this.waitingPlayer.color, position);
+      if (!removed)
+        return;
+      this.moves.push(position);
+      const neighboringSlots = this.board.neighboringSlots(position);
+      for (let neighbor of neighboringSlots) {
+        this.board.disconnect(this.waitingPlayer.color, [position, neighbor.position]);
+      }
+      this.endTurn();
+    }
     addConnections(position, slot) {
       const neighboringSlots = this.board.neighboringSlots(position);
       const neighboringSlotsWithColor = neighboringSlots.filter((slot2) => slot2.color == this.currentPlayer.color);
@@ -384,12 +421,20 @@
       return this.board.connect(this.currentPlayer.color, [slot1, slot2]);
     }
     endTurn() {
-      this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length;
+      this.currentPlayerIndex = this.waitingPlayerIndex;
+    }
+    get waitingPlayerIndex() {
+      return (this.currentPlayerIndex + 1) % this.players.length;
     }
     parse(rawMoves) {
       const positions = parseMoves(rawMoves);
-      for (let position of positions)
-        this.placePeg(position);
+      for (let position of positions) {
+        if (this.board.slotAt(position)) {
+          this.removePeg(position);
+        } else {
+          this.placePeg(position);
+        }
+      }
     }
     get serialize() {
       return serializeMoves(this.moves);
@@ -682,20 +727,24 @@
   var GameUI = class {
     constructor(game, gameData, player, onComplete) {
       this.canvasClicked = (cursorPosition) => {
-        if (this.game.currentPlayer.color != this.color)
+        if (this.game.currentPlayer.color != this.color && !this.moveInProgress)
           return;
         const positionClicked = {
           row: Math.floor(cursorPosition.y / this.slotGapSize) - BOARD_PADDING,
           column: Math.floor(cursorPosition.x / this.slotGapSize) - BOARD_PADDING
         };
-        console.log(positionClicked);
+        console.log("Position Clicked: ", positionClicked);
+        if (this.moveInProgress)
+          this.game.removePeg(this.moveInProgress);
+        const peg = this.game.placePeg(positionClicked);
+        if (!peg.slot)
+          return;
         this.moveInProgress = positionClicked;
-        this.game.placePeg(positionClicked);
         this.render();
         this.confirmButton.disabled = false;
         console.log("Confirm button active");
       };
-      this.moveConfirmed = () => {
+      this.confirmMove = () => {
         console.log("Move confirmed");
         this.gameData.write(this.moveInProgress);
         this.confirmButton.disabled = true;
@@ -747,7 +796,7 @@
       const newConfirmButton = this.confirmButton.cloneNode(true);
       this.confirmButton.replaceWith(newConfirmButton);
       this.confirmButton = newConfirmButton;
-      this.confirmButton.addEventListener("click", this.moveConfirmed);
+      this.confirmButton.addEventListener("click", this.confirmMove);
       this.renderer.draw();
     }
     render() {
