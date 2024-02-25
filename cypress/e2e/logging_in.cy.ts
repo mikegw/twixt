@@ -7,7 +7,7 @@ describe('Logging in', () => {
       .type('<')
       .type('{enter}')
 
-      cy.get('h1').contains('Main Menu').should('not.be.visible')
+      cy.get('h2').contains('Main Menu').should('not.be.visible')
     })
 
     it('creates a user automatically', () => {
@@ -17,7 +17,7 @@ describe('Logging in', () => {
         .type('NewUser')
         .type('{enter}')
 
-      cy.get('h1').contains('Main Menu').should('be.visible')
+      cy.get('h2').contains('Main Menu').should('be.visible')
     })
   })
 
@@ -30,10 +30,10 @@ describe('Logging in', () => {
 
     cy.visit('/')
 
-    cy.get('h1').contains('Main Menu').should('be.visible')
+    cy.get('h2').contains('Main Menu').should('be.visible')
   })
 
-  it.only('keeps a reference to the logged in user', () => {
+  it('keeps a reference to the logged in user', () => {
     cy.visit('/')
 
     cy.get('input[name=username]')
@@ -42,10 +42,10 @@ describe('Logging in', () => {
 
     cy.visit('/')
 
-    cy.get('button').contains('Play')
+    cy.get('button').contains(/^Play$/)
       .click()
 
-    cy.get('li').contains('User').should('not.be.visible')
+    cy.get('#users').should('be.empty')
   })
 
   it('lets a user log out', () => {
@@ -56,7 +56,7 @@ describe('Logging in', () => {
       .type('{enter}')
 
     cy.logout()
-    cy.get('h1').contains('Main Menu').should('not.be.visible')
+    cy.get('h2').contains('Main Menu').should('not.be.visible')
   })
 
   it('remembers that a user has been logged out', () => {
@@ -69,7 +69,7 @@ describe('Logging in', () => {
     cy.logout()
 
     cy.visit('/')
-    cy.get('h1').contains('Main Menu').should('not.be.visible')
+    cy.get('h2').contains('Main Menu').should('not.be.visible')
   })
 
   it('clears the list of players on log out', () => {

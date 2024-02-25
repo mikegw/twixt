@@ -59,6 +59,25 @@ export class Game {
     this.endTurn()
   }
 
+  endTurn() {
+    this.currentPlayerIndex = this.waitingPlayerIndex
+  }
+
+  parse(rawMoves: string) {
+    const positions = parseMoves(rawMoves)
+    for (let position of positions) {
+      if (this.board.slotAt(position)) {
+        this.removePeg(position)
+      } else {
+        this.placePeg(position)
+      }
+    }
+  }
+
+  get serialize() {
+    return serializeMoves(this.moves)
+  }
+
   private addConnections(position: Position, slot: Slot) {
     const neighboringSlots = this.board.neighboringSlots(position)
 
@@ -99,27 +118,8 @@ export class Game {
     return this.board.connect(this.currentPlayer.color, [slot1, slot2])
   }
 
-  endTurn() {
-    this.currentPlayerIndex = this.waitingPlayerIndex
-  }
-
   private get waitingPlayerIndex() {
     return (this.currentPlayerIndex + 1) % this.players.length
-  }
-
-  parse(rawMoves: string) {
-    const positions = parseMoves(rawMoves)
-    for (let position of positions) {
-      if (this.board.slotAt(position)) {
-        this.removePeg(position)
-      } else {
-        this.placePeg(position)
-      }
-    }
-  }
-
-  get serialize() {
-    return serializeMoves(this.moves)
   }
 }
 

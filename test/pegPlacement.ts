@@ -129,4 +129,41 @@ describe('Peg Placement', () => {
 
     expect(game.board.slots[2].color).to.eq(Color.Red)
   })
+
+  it('can remove a peg from the board', () => {
+    const game = new Game()
+    const position = { row: 0, column: 1 }
+    game.placePeg(position)
+    game.removePeg(position)
+    expect(game.board.slotAt(position)).to.be.undefined
+  })
+
+  describe('when removing a peg', () => {
+    it('removes connections to neighboring pegs', () => {
+      const game = new Game()
+
+      game.placePeg({ row: 0, column: 1 })
+      game.placePeg({ row: 1, column: 0 })
+      game.placePeg({ row: 1, column: 3 })
+
+      game.removePeg({ row: 1, column: 3 })
+
+      expect(game.board.connections).to.be.empty
+    })
+
+    it('only removes neighboring pegs', () => {
+      const game = new Game()
+
+      game.placePeg({ row: 0, column: 1 })
+      game.placePeg({ row: 1, column: 0 })
+      game.placePeg({ row: 1, column: 3 })
+      game.placePeg({ row: 2, column: 0 })
+      game.placePeg({ row: 3, column: 4 })
+      expect(game.board.connections.length).to.eq(2)
+
+      game.removePeg({ row: 3, column: 4 })
+
+      expect(game.board.connections).not.to.be.empty
+    })
+  })
 });

@@ -26,7 +26,7 @@
       </symbol>
 
       <symbol id="question">
-        <use xlink:href="#fa-circle"></use>
+        <use xlink:href="#fa-circle" transform="scale(0.95) translate(3,3)"></use>
         <use xlink:href="#fa-question"></use>
       </symbol>
     </svg>
@@ -35,26 +35,30 @@
       <button class="log-out-button icon-button hidden" id="log-out">
         <i class="fa-solid fa-arrow-right-from-bracket fa-xl"></i>
       </button>
+      <h1>TwixT</h1>
 
-      <form id="get-started" class="page hidden">
-        <label>
-          <input
-            autofocus
-            type="text"
-            name="username"
-            placeholder=" "
-            pattern="^[^<>()]+$"
-            maxlength="16"
-            title="User name can be at most 16 characters and can not contain angle brackets or parentheses">
+      <article id="get-started" class="page hidden">
+        <form>
+          <label>
+            <input
+              autofocus
+              type="text"
+              name="username"
+              placeholder=" "
+              pattern="^[^<>()]+$"
+              maxlength="16"
+              title="User name can be at most 16 characters and can not contain angle brackets or parentheses">
 
-          <span>User name</span>
-        </label>
+            <span>Username</span>
+          </label>
 
-        <button class="nav-button" id="get-started-button">Get Started</button>
-      </form>
+          <button class="nav-button" id="get-started-button">Play TwixT</button>
+        </form>
+      </article>
+
 
       <article id="main-menu" class="page hidden">
-        <h1>Main Menu</h1>
+        <h2>Main Menu</h2>
         <nav>
           <button class="nav-button" id="play">Play</button>
           <button class="nav-button" id="learn" onclick="window.location.href = 'https://en.wikipedia.org/wiki/TwixT#Rules'">Learn</button>
@@ -67,7 +71,7 @@
           <i class="fa-solid fa-arrow-left fa-xl"></i>
         </button>
 
-        <h1>Join or Start Game</h1>
+        <h2>Join or Start Game</h2>
 <!--        <nav>-->
 <!--          <button class="nav-button" id="add-friend">Add Friend</button>-->
 <!--          <button class="nav-button" id="join-random">Random Player</button>-->
@@ -100,21 +104,23 @@
     <li class="player">
       <i class="fa-solid fa-user"></i>
       <span class="friend-name"></span>
-      <button class="icon-button invite-friend">
+      <button class="icon-button invite-friend" title="Invite to play">
         <svg class="dual-icon" viewBox="0 0 100 100">
           <use xlink:href="#play"></use>
           <use xlink:href="#add"></use>
         </svg>
       </button>
 
-      <button class="icon-button invite-pending">
+      <button class="icon-button invite-pending" title="Invite Pending...">
         <svg viewBox="0 0 100 100">
           <use xlink:href="#question"></use>
         </svg>
       </button>
 
-      <button class="icon-button play-game">
-        <i class="fa-solid fa-play"></i>
+      <button class="icon-button play-game" title="Play">
+        <svg viewBox="0 0 100 100">
+          <use xlink:href="#play"></use>
+        </svg>
       </button>
     </li>
   </template>

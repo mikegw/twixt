@@ -5,6 +5,7 @@ import {Color} from "../../../src/twixt/player";
 
 export function playMoves(opponentName: string, moves: string) {
   const positions = parseMoves(moves)
+  const rawMoves = moves.split(',')
 
   const receiveGame = new Promise<GameInProgress>(resolve => {
     this.dataStore.read(User.gamesInProgressPath(opponentName), (games: {[key: string]: GameInProgress}) => {
@@ -15,31 +16,24 @@ export function playMoves(opponentName: string, moves: string) {
   return (cy.wrap(receiveGame) as Cypress.Chainable<GameInProgress>)
     .then((gameInProgress: GameInProgress) => {
       const gameData =
-        cy.wrap(new GameData(this.dataStore, gameInProgress.gameId)).as('gameData')
+        cy.wrap(new GameData(this.dataStore, gameInProgress.gameId))
+          .as('gameData')
 
       cy.get('#player-color')
         .contains(/RED|BLUE/)
         .invoke('text')
         .as('playerColor')
-
-      return cy.get<HTMLCanvasElement>('#game-canvas')
-        .then(canvas => {
-          for (let position of positions) {
-            cy.get('#current-player')
-              .contains(/RED|BLUE/)
-              .invoke('text')
-              .as('currentPlayerColor')
-              .then(() => {
-                const opponentColor = this.playerColor == Color.Red ? Color.Blue : Color.Red
-
-                console.log(this.currentPlayerColor, this.playerColor)
-                if (this.currentPlayerColor == this.playerColor) {
-                  cy.playMove(position, this.playerColor)
-                } else {
-                  this.gameData.write(position)
-                  cy.get('#game-status').contains(RegExp(`${this.playerColor}|wins`))
-                }
-              })
+        .then(() => {
+          for (let i = 0; i < positions.length; i++) {
+            if (i % 2 == 1) {
+              cy.log('Opponent to move', positions[i])
+                .then(() => this.gameData.write(positions[i]))
+              cy.pegAtPosition(positions[i]).should("eq", Color.Blue)
+            } else {
+              cy.log('Player to move', positions[i])
+              cy.playMove(positions[i], Color.Red)
+              cy.get('#current-player').contains(Color.Blue)
+            }
           }
         })
     })

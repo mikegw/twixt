@@ -69,10 +69,14 @@ export class GameUI {
     if (this.moveInProgress) this.game.removePeg(this.moveInProgress)
 
     const peg = this.game.placePeg(positionClicked)
-    if (!peg.slot) return
+    if (!peg.slot) {
+      console.log("Placing peg failed?", peg)
+      return
+    }
 
     this.moveInProgress = positionClicked
     this.render()
+    console.log("Rendered")
 
     this.confirmButton.disabled = false
     console.log('Confirm button active')
@@ -99,6 +103,7 @@ export class GameUI {
     } else {
       this.currentPlayerSpan.innerText = this.game.currentPlayer.color
       this.currentPlayerSpan.setAttribute('color', this.game.currentPlayer.color)
+      console.log("Set span to ", this.game.currentPlayer.color)
     }
   }
 

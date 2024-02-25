@@ -5,8 +5,9 @@ import { dataStore } from "./dataStore/firebase";
 import { DataStore } from "./dataStore";
 import { UsernameList } from "./usernameList";
 import {newDataStore} from "./dataStore/localDataStore";
+import { Coin } from "./coin";
 
-export type Environment = 'local' | 'test' | 'production'
+export type Environment = 'local' | 'test' | 'e2e' | 'production'
 
 export type Config = { firebaseConfig: FirebaseOptions, environment: Environment }
 
@@ -39,6 +40,7 @@ export type GlobalContextType = {
   currentUser: User
   currentPage: Page
   dataStore: DataStore
+  // environment: Environment
 }
 
 export const GlobalContext: GlobalContextType = {
@@ -82,3 +84,5 @@ if (username != null) {
 }
 
 (window as any).newDataStore = newDataStore()
+
+if (config.environment == 'e2e') Coin.bias = 'HEADS'

@@ -1,9 +1,10 @@
 import { Color } from "../../src/twixt/player";
 import { parseMove } from "../../src/twixt/parse";
+import { Coin } from "../../src/coin";
 
 describe('Playing a game', () => {
   it('allows player to move', () => {
-    cy.startGameBetween('player1', 'player2', true)
+    cy.startGameBetween('player1', 'player2')
 
     cy.playMoves('player2', 'C4,D8,D6,B2').then(() => {
       cy.pegAt('C4').should("eq", Color.Red)
@@ -14,13 +15,13 @@ describe('Playing a game', () => {
   })
 
   it('expects players to confirm moves', () => {
-    cy.startGameBetween('player1', 'player2', true)
+    cy.startGameBetween('player1', 'player2')
     cy.playMove(parseMove('B2'), Color.Red, false)
     cy.currentPlayer().should("eq", Color.Red)
   })
 
   it('allows players to change moves before confirming', () => {
-    cy.startGameBetween('player1', 'player2', true)
+    cy.startGameBetween('player1', 'player2')
     cy.playMove(parseMove('B2'), Color.Red, false)
     cy.playMove(parseMove('B3'), Color.Red, false).then(() => {
       cy.pegAt('B2').should("be.null")

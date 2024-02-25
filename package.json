@@ -9,10 +9,11 @@
   "scripts": {
     "build": "node scripts/build.mjs --sourcemap",
     "build:test": "node scripts/build.mjs --sourcemap --env=test",
+    "build:e2e": "node scripts/build.mjs --sourcemap --env=e2e",
     "build:prod": "node scripts/build.mjs --env=production",
-    "cypress:start": "yarn run build:test && yarn run cypress open",
-    "test": "mocha -r ts-node/register 'test/**/*.ts'",
-    "test:feature": "yarn run cypress run",
+    "cypress:start": "yarn run build:e2e && yarn run cypress open",
+    "test": "yarn run build:test && mocha -r ts-node/register 'test/**/*.ts'",
+    "test:feature": "yarn run build:e2e && yarn run cypress run",
     "watch": "yarn build --watch",
     "watch:test": "yarn run build:test --watch",
     "lint": "yarn run eslint"
@@ -25,6 +26,7 @@
     "@typescript-eslint/parser": "^5.58.0",
     "chai": "^4.3.7",
     "cypress": "^12.9.0",
+    "cypress-wait-until": "^3.0.1",
     "esbuild": "^0.17.16",
     "eslint": "^8.38.0",
     "mocha": "^10.2.0",

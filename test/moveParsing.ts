@@ -18,4 +18,13 @@ describe('Move Parsing', () => {
 
     expect(game.serialize).to.eq(moves)
   })
+
+  it('can pass a string of moves that includes a removed peg', () => {
+    const moves: string = 'B4,H12,D6,D6,D5'
+    const game = new Game()
+    game.parse(moves)
+
+    expect(game.board.slots.filter(slot => slot.isOccupied).length).to.eq(3)
+    expect(game.board.connections.length).to.eq(1)
+  })
 });

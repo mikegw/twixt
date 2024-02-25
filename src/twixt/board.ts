@@ -2,6 +2,7 @@ import { addVectors, sameVectors, Vector } from "./board/vector";
 import { Slot } from "./board/slot";
 import { Connection } from "./board/connection";
 import { Color } from "./player";
+import { serializeMoves } from "./parse";
 
 export type Position = Vector
 
@@ -38,6 +39,8 @@ export class Board {
 
     let slot = this.slotAt(position)
     if (slot) return null
+
+    console.log(`Placing a ${color} peg at ${serializeMoves([position])}`)
 
     slot = new Slot(position)
     slot.color = color

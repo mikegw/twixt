@@ -4,13 +4,13 @@ export const loginAs = (username: string, reload = true) => {
   cy.get('input[name=username]')
     .type(username)
 
-  cy.get('button').contains('Get Started')
+  cy.get('button').contains('Play TwixT')
     .click()
 
-  cy.get('h1').contains('Main Menu').should('be.visible')
+  cy.get('h2').contains('Main Menu').should('be.visible')
 
-  cy.get('button').contains('Play')
+  cy.get('button').contains(/^Play$/)
     .click()
 
-  cy.get('h1').contains('Join or Start Game').should('be.visible')
+  cy.get('h2').contains('Join or Start Game').should('be.visible')
 }

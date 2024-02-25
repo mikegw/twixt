@@ -19,7 +19,7 @@ const newDataStore = (environment: string, db: Database): DataStore => {
   }
 
   const append = (path: string, data: any) => {
-    push(reference(path), data)
+    push(reference(path), data).catch(reason => console.log(reason))
   }
 
   const childAdded = (path: string, callback: (data: any, key: string) => void) => {
@@ -67,6 +67,7 @@ export const dataStore = (config: Config) => {
 
   switch(environment) {
     case 'test':
+    case 'e2e':
       return newSandboxDataStore('test', db)
     case 'production':
       return  newDataStore('production', db)

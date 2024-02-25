@@ -49,7 +49,6 @@ export const newDataStore = (): DataStore => {
     if(firstNewNodeIndex < 0) return
 
     const newNode = branch[firstNewNodeIndex].node
-    console.log("New Node:", newNode)
     const lastExistingNode = branch[firstNewNodeIndex - 1].node
 
     const childAddedCallbacks = lastExistingNode.callbacksOfType('childAdded')

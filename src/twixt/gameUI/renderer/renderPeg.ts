@@ -3,7 +3,7 @@ import { Slot } from "../../board/slot";
 import { Canvas } from "../canvas";
 
 const PEG_RADIUS = 0.00525
-const ANIMATION_SPEED = 0.06
+const ANIMATION_SPEED = 0.05
 
 export type AnimatedPeg = {
   peg: Slot

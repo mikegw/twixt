@@ -232,6 +232,28 @@
     }
   };
 
+  // src/twixt/parse.ts
+  var parseMoves = (rawMovesString) => {
+    const rawMoves = rawMovesString.split(",");
+    return rawMoves.map(parseMove);
+  };
+  var parseMove = (rawMove) => {
+    const rawColumn = rawMove[0];
+    const rawRow = rawMove.substring(1);
+    return {
+      row: Number(rawRow) - 1,
+      column: rawColumn.charCodeAt(0) - "A".charCodeAt(0)
+    };
+  };
+  var serializeMoves = (moves) => {
+    return moves.map(serializeMove).join(",");
+  };
+  var serializeMove = (move) => {
+    const column = String.fromCharCode(move.column + "A".charCodeAt(0));
+    const row = String(move.row + 1);
+    return column + row;
+  };
+
   // src/twixt/board.ts
   function isPosition(data) {
     return "row" in data && "column" in data;
@@ -263,6 +285,7 @@
       let slot = this.slotAt(position);
       if (slot)
         return null;
+      console.log(`Placing a ${color} peg at ${serializeMoves([position])}`);
       slot = new Slot(position);
       slot.color = color;
       this.slots.push(slot);
@@ -329,28 +352,6 @@
     return positions2.every((p2) => positions1.some((p1) => sameVectors(p1, p2)));
   };
 
-  // src/twixt/parse.ts
-  var parseMoves = (rawMovesString) => {
-    const rawMoves = rawMovesString.split(",");
-    return rawMoves.map(parseMove);
-  };
-  var parseMove = (rawMove) => {
-    const rawColumn = rawMove[0];
-    const rawRow = rawMove.substring(1);
-    return {
-      row: Number(rawRow) - 1,
-      column: rawColumn.charCodeAt(0) - "A".charCodeAt(0)
-    };
-  };
-  var serializeMoves = (moves) => {
-    return moves.map(serializeMove).join(",");
-  };
-  var serializeMove = (move) => {
-    const column = String.fromCharCode(move.column + "A".charCodeAt(0));
-    const row = String(move.row + 1);
-    return column + row;
-  };
-
   // src/twixt/game.ts
   var Game = class {
     constructor() {
@@ -405,6 +406,22 @@
       }
       this.endTurn();
     }
+    endTurn() {
+      this.currentPlayerIndex = this.waitingPlayerIndex;
+    }
+    parse(rawMoves) {
+      const positions = parseMoves(rawMoves);
+      for (let position of positions) {
+        if (this.board.slotAt(position)) {
+          this.removePeg(position);
+        } else {
+          this.placePeg(position);
+        }
+      }
+    }
+    get serialize() {
+      return serializeMoves(this.moves);
+    }
     addConnections(position, slot) {
       const neighboringSlots = this.board.neighboringSlots(position);
       const neighboringSlotsWithColor = neighboringSlots.filter((slot2) => slot2.color == this.currentPlayer.color);
@@ -420,24 +437,8 @@
     connect(slot1, slot2) {
       return this.board.connect(this.currentPlayer.color, [slot1, slot2]);
     }
-    endTurn() {
-      this.currentPlayerIndex = this.waitingPlayerIndex;
-    }
     get waitingPlayerIndex() {
       return (this.currentPlayerIndex + 1) % this.players.length;
-    }
-    parse(rawMoves) {
-      const positions = parseMoves(rawMoves);
-      for (let position of positions) {
-        if (this.board.slotAt(position)) {
-          this.removePeg(position);
-        } else {
-          this.placePeg(position);
-        }
-      }
-    }
-    get serialize() {
-      return serializeMoves(this.moves);
     }
   };
 
@@ -484,7 +485,7 @@
 
   // src/twixt/gameUI/renderer/renderPeg.ts
   var PEG_RADIUS = 525e-5;
-  var ANIMATION_SPEED = 0.06;
+  var ANIMATION_SPEED = 0.05;
   var drawPeg = (pegAnimation, canvas, gapSize) => {
     const slotCoordinates = positionToCoordinates(pegAnimation.peg.position, gapSize);
     canvas.drawCircle(
@@ -663,7 +664,6 @@
       this.canvas = document.getElementById("game-canvas");
       this.ctx = this.canvas.getContext("2d");
       this.setDimensions = () => {
-        console.log(this.canvas.offsetWidth, this.canvas.offsetHeight);
         const minSize = Math.min(this.canvas.offsetHeight, this.canvas.offsetWidth);
         this.canvas.style.height = `${minSize}px`;
         this.canvas.style.width = `${minSize}px`;
@@ -737,10 +737,13 @@
         if (this.moveInProgress)
           this.game.removePeg(this.moveInProgress);
         const peg = this.game.placePeg(positionClicked);
-        if (!peg.slot)
+        if (!peg.slot) {
+          console.log("Placing peg failed?", peg);
           return;
+        }
         this.moveInProgress = positionClicked;
         this.render();
+        console.log("Rendered");
         this.confirmButton.disabled = false;
         console.log("Confirm button active");
       };
@@ -764,6 +767,7 @@
         } else {
           this.currentPlayerSpan.innerText = this.game.currentPlayer.color;
           this.currentPlayerSpan.setAttribute("color", this.game.currentPlayer.color);
+          console.log("Set span to ", this.game.currentPlayer.color);
         }
       };
       this.windowResized = () => {
@@ -894,7 +898,12 @@
   var Coin = {
     Heads: "HEADS",
     Tails: "TAILS",
-    toss: () => Math.random() > 0.5 ? "HEADS" : "TAILS"
+    bias: void 0,
+    toss: () => {
+      if (Coin.bias)
+        return Coin.bias;
+      return Math.random() > 0.5 ? "HEADS" : "TAILS";
+    }
   };
 
   // src/user.ts
@@ -11673,7 +11682,7 @@
       set(reference(path), data);
     };
     const append = (path, data) => {
-      push(reference(path), data);
+      push(reference(path), data).catch((reason) => console.log(reason));
     };
     const childAdded = (path, callback) => {
       return onChildAdded(reference(path), (snapshot) => {
@@ -11711,6 +11720,7 @@
     const db = getDatabase(app);
     switch (environment) {
       case "test":
+      case "e2e":
         return newSandboxDataStore("test", db);
       case "production":
         return newDataStore("production", db);
@@ -11772,7 +11782,6 @@
       if (firstNewNodeIndex < 0)
         return;
       const newNode = branch[firstNewNodeIndex].node;
-      console.log("New Node:", newNode);
       const lastExistingNode = branch[firstNewNodeIndex - 1].node;
       const childAddedCallbacks = lastExistingNode.callbacksOfType("childAdded");
       for (let callback of childAddedCallbacks)
@@ -11854,6 +11863,8 @@
     navigateTo(Pages.GetStarted);
   }
   window.newDataStore = newDataStore2();
+  if (config.environment == "e2e")
+    Coin.bias = "HEADS";
 })();
 /*! Bundled license information:
 

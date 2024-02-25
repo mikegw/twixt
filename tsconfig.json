@@ -4,6 +4,7 @@
       "ES2017",
       "DOM"
     ],
+    "types": ["cypress", "cypress-wait-until"],
     "moduleResolution": "node",
     "baseUrl": "src",
     "esModuleInterop": true,
