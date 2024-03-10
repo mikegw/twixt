@@ -1,14 +1,14 @@
 import { Slot } from "./slot";
 import { intersects, sameVectors, subtractVectors, Vector } from "./vector";
 import { Position } from "../board";
-import { Color } from "../player";
+import { Direction } from "../player";
 
 export class Connection {
-  color: Color
+  direction: Direction
   slots: [Slot, Slot]
 
-  constructor(color: Color, slots: [Slot, Slot]) {
-    this.color = color
+  constructor(direction: Direction, slots: [Slot, Slot]) {
+    this.direction = direction
     this.slots = slots
   }
 

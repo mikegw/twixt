@@ -1,7 +1,7 @@
 import {parseMoves} from "../../../src/twixt/parse";
 import {GameInProgress, User} from "../../../src/user";
 import {GameData} from "../../../src/twixt/gameData";
-import {Color} from "../../../src/twixt/player";
+import {Color} from "../../../src/twixt/gameUI";
 
 export function playMoves(opponentName: string, moves: string) {
   const positions = parseMoves(moves)

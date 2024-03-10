@@ -1,6 +1,5 @@
-import { Color } from "../../src/twixt/player";
+import { Color } from "../../src/twixt/gameUI";
 import { parseMove } from "../../src/twixt/parse";
-import { Coin } from "../../src/coin";
 
 describe('Playing a game', () => {
   it('allows player to move', () => {

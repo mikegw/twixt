@@ -1,4 +1,4 @@
-import { Color } from "../../../src/twixt/player";
+import { Color } from "../../../src/twixt/gameUI";
 
 export const currentPlayer = () => {
   return cy.get('#current-player')

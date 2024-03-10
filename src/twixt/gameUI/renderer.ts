@@ -1,8 +1,9 @@
 import { Board, Position } from "../board"
 import { Canvas, Coordinates } from "./canvas";
-import { Color } from "../player";
+import { Direction } from "../player";
 import { AnimatedPeg, drawPeg, pegRadius } from "./renderer/renderPeg";
 import { AnimatedConnection, drawConnection } from "./renderer/renderConnection";
+import { Color } from "../gameUI";
 
 const EMPTY_SLOT_RADIUS = 0.003
 const BOUNDARY_WIDTH = 0.002

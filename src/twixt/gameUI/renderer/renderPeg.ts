@@ -1,6 +1,7 @@
 import { COLORS, positionToCoordinates } from "../renderer";
 import { Slot } from "../../board/slot";
 import { Canvas } from "../canvas";
+import { ColorForDirection } from "../../gameUI";
 
 const PEG_RADIUS = 0.00525
 const ANIMATION_SPEED = 0.05
@@ -16,7 +17,7 @@ export const drawPeg = (pegAnimation: AnimatedPeg, canvas: Canvas, gapSize: numb
   canvas.drawCircle(
     slotCoordinates,
     pegRadius(pegAnimation.completion, radiusValue, canvas),
-    COLORS[pegAnimation.peg.color]
+    COLORS[ColorForDirection.get(pegAnimation.peg.direction)]
   )
 
   if (pegAnimation.completion < 1) pegAnimation.completion = nextFrame(pegAnimation.completion, ANIMATION_SPEED)

@@ -1,11 +1,11 @@
 import { Board, Position } from "./board";
-import { Color, Player } from "./player";
+import { Direction, Player } from "./player";
 import { Slot } from "./board/slot";
 import { Connection } from "./board/connection";
 import { parseMoves, serializeMoves } from "./parse";
 
 export class Game {
-  players = [new Player(Color.Red), new Player(Color.Blue)]
+  players = [new Player(Direction.Vertical), new Player(Direction.Horizontal)]
   board =  new Board()
   currentPlayerIndex = 0
   moves: Position[] = []
@@ -18,24 +18,24 @@ export class Game {
     return this.players[this.waitingPlayerIndex]
   }
 
-  get winner(): Color {
+  get winner(): Direction {
     const slotsToCheck = this.board.slots.filter(slot => slot.isOccupied)
     const winningSlot = slotsToCheck.find(slot => slot.isConnectedToStart && slot.isConnectedToEnd)
-    return winningSlot ? winningSlot.color : null
+    return winningSlot ? winningSlot.direction : null
   }
 
   placePeg(position: Position): PlacePegResult {
-    const slot = this.board.place(this.currentPlayer.color, position)
+    const slot = this.board.place(this.currentPlayer.direction, position)
     if (!slot) return { slot, connectionsAdded: [] }
     this.moves.push(position)
 
-    if ((position.row == 0 && this.currentPlayer.color == Color.Red) ||
-      (position.column == 0 && this.currentPlayer.color == Color.Blue)) {
+    if ((position.row == 0 && this.currentPlayer.direction == Direction.Vertical) ||
+      (position.column == 0 && this.currentPlayer.direction == Direction.Horizontal)) {
       slot.isConnectedToStart = true
     }
 
-    if ((position.row == this.board.size - 1 && this.currentPlayer.color == Color.Red) ||
-      (position.column == this.board.size - 1 && this.currentPlayer.color == Color.Blue)) {
+    if ((position.row == this.board.size - 1 && this.currentPlayer.direction == Direction.Vertical) ||
+      (position.column == this.board.size - 1 && this.currentPlayer.direction == Direction.Horizontal)) {
       slot.isConnectedToEnd = true
     }
 
@@ -47,13 +47,13 @@ export class Game {
   }
 
   removePeg(position: Position) {
-    const removed = this.board.removePeg(this.waitingPlayer.color, position)
+    const removed = this.board.removePeg(this.waitingPlayer.direction, position)
     if (!removed) return
 
     this.moves.push(position)
     const neighboringSlots = this.board.neighboringSlots(position)
     for (let neighbor of neighboringSlots) {
-      this.board.disconnect(this.waitingPlayer.color,[position, neighbor.position])
+      this.board.disconnect(this.waitingPlayer.direction,[position, neighbor.position])
     }
 
     this.endTurn()
@@ -82,7 +82,7 @@ export class Game {
     const neighboringSlots = this.board.neighboringSlots(position)
 
     const neighboringSlotsWithColor =
-      neighboringSlots.filter(slot => slot.color == this.currentPlayer.color)
+      neighboringSlots.filter(slot => slot.direction == this.currentPlayer.direction)
 
     const connections =
       neighboringSlotsWithColor.map(neighbor => this.connect(neighbor, slot))
@@ -107,7 +107,7 @@ export class Game {
 
       const neighboringSlotsToConnect =
         this.board.neighboringSlots(slotToConnect.position)
-        .filter(slot => slot.color == this.currentPlayer.color)
+        .filter(slot => slot.direction == this.currentPlayer.direction)
         .filter(slot => !slot[connection])
 
       slotsToConnect.push(...neighboringSlotsToConnect)
@@ -115,7 +115,7 @@ export class Game {
   }
 
   private connect(slot1: Slot, slot2: Slot): Connection | null {
-    return this.board.connect(this.currentPlayer.color, [slot1, slot2])
+    return this.board.connect(this.currentPlayer.direction, [slot1, slot2])
   }
 
   private get waitingPlayerIndex() {

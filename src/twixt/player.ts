@@ -1,12 +1,12 @@
-export enum Color {
-  Red = 'RED',
-  Blue = 'BLUE'
+export enum Direction {
+  Vertical = 'VERTICAL',
+  Horizontal = 'HORIZONTAL'
 }
 
 export class Player {
-  color: Color
+  direction: Direction
 
-  constructor(color: Color) {
-    this.color = color
+  constructor(direction: Direction) {
+    this.direction = direction
   }
 }

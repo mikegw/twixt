@@ -1,18 +1,18 @@
 import { Position } from "../board";
-import { Color } from "../player";
+import { Direction } from "../player";
 
 export class Slot {
   position: Position
-  color: Color
+  direction: Direction
   isConnectedToStart: boolean;
   isConnectedToEnd: boolean;
 
   constructor(position: Position) {
-    this.color = null
+    this.direction = null
     this.position = position
   }
 
   get isOccupied() {
-    return this.color !== null
+    return this.direction !== null
   }
 }

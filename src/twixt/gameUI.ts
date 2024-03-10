@@ -4,7 +4,18 @@ import { Canvas, Coordinates } from "./gameUI/canvas";
 import { Game } from "./game";
 import { Position } from "./board";
 import { GameData } from "./gameData";
-import { Color } from "./player";
+import { Direction } from "./player";
+
+
+export enum Color {
+  Red = 'RED',
+  Blue = 'BLUE'
+}
+
+export const ColorForDirection = new Map<Direction, Color>([
+  [Direction.Vertical, Color.Red],
+  [Direction.Horizontal, Color.Blue]
+])
 
 export class GameUI {
   game: Game
@@ -58,7 +69,7 @@ export class GameUI {
   }
 
   canvasClicked = (cursorPosition: Coordinates) => {
-    if (this.game.currentPlayer.color != this.color && !this.moveInProgress) return
+    if (ColorForDirection.get(this.game.currentPlayer.direction) != this.color && !this.moveInProgress) return
 
     const positionClicked: Position = {
       row: Math.floor(cursorPosition.y / this.slotGapSize) - BOARD_PADDING,
@@ -90,7 +101,7 @@ export class GameUI {
   }
 
   moveMade = (position: Position) => {
-    console.debug(`Move made by ${this.game.currentPlayer.color}: { row: ${position.row}, column: ${position.column} }`)
+    console.debug(`Move made by ${this.game.currentPlayer.direction}: { row: ${position.row}, column: ${position.column} }`)
     if (this.moveInProgress) {
       this.moveInProgress = null
     } else {
@@ -101,9 +112,10 @@ export class GameUI {
       this.playerStatusSpan.innerText = 'wins!'
       this.onComplete()
     } else {
-      this.currentPlayerSpan.innerText = this.game.currentPlayer.color
-      this.currentPlayerSpan.setAttribute('color', this.game.currentPlayer.color)
-      console.log("Set span to ", this.game.currentPlayer.color)
+      const color = ColorForDirection.get(this.game.currentPlayer.direction)
+      this.currentPlayerSpan.innerText = color
+      this.currentPlayerSpan.setAttribute('color', color)
+      console.log("Set span to ", color)
     }
   }
 
@@ -124,9 +136,5 @@ export class GameUI {
   private setPlayerColor(span: HTMLSpanElement, color: Color) {
     span.innerText = color
     span.setAttribute('color', color)
-  }
-
-  private toggleConfirmButton() {
-    this.confirmButton
   }
 }

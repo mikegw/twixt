@@ -2,7 +2,7 @@ import { expect } from "chai";
 
 import { Game } from "../src/twixt/game";
 import { Position } from "../src/twixt/board";
-import { Color } from "../src/twixt/player";
+import { Direction } from "../src/twixt/player";
 
 describe('Peg Placement', () => {
   it('can place a peg on the board', () => {
@@ -127,7 +127,7 @@ describe('Peg Placement', () => {
     game.placePeg({ row: 2, column: 2 })
     game.placePeg({ row: 1, column: 1 })
 
-    expect(game.board.slots[2].color).to.eq(Color.Red)
+    expect(game.board.slots[2].direction).to.eq(Direction.Vertical)
   })
 
   it('can remove a peg from the board', () => {

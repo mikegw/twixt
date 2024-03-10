@@ -197,17 +197,17 @@
   // src/twixt/board/slot.ts
   var Slot = class {
     constructor(position) {
-      this.color = null;
+      this.direction = null;
       this.position = position;
     }
     get isOccupied() {
-      return this.color !== null;
+      return this.direction !== null;
     }
   };
 
   // src/twixt/board/connection.ts
   var Connection = class {
-    constructor(color, slots) {
+    constructor(direction, slots) {
       this.overlaps = (otherConnection) => {
         const firstPegConnectedToOtherConnection = otherConnection.positions.some((position) => sameVectors(this.positions[0], position));
         const secondPegConnectedToOtherConnection = otherConnection.positions.some((position) => sameVectors(this.positions[1], position));
@@ -217,7 +217,7 @@
           return false;
         return intersects(this.positions, otherConnection.positions);
       };
-      this.color = color;
+      this.direction = direction;
       this.slots = slots;
     }
     get positions() {
@@ -227,8 +227,8 @@
 
   // src/twixt/player.ts
   var Player = class {
-    constructor(color) {
-      this.color = color;
+    constructor(direction) {
+      this.direction = direction;
     }
   };
 
@@ -277,34 +277,34 @@
       };
       this.size = size;
     }
-    place(color, position) {
+    place(direction, position) {
       if (!this.isValidPosition(position))
         return null;
-      if (this.onOpponentBorder(position, color))
+      if (this.onOpponentBorder(position, direction))
         return null;
       let slot = this.slotAt(position);
       if (slot)
         return null;
-      console.log(`Placing a ${color} peg at ${serializeMoves([position])}`);
+      console.log(`Placing a ${direction} peg at ${serializeMoves([position])}`);
       slot = new Slot(position);
-      slot.color = color;
+      slot.direction = direction;
       this.slots.push(slot);
       return slot;
     }
-    removePeg(color, position) {
-      return removeMatchingElements(this.slots, (slot) => slot.color == color && sameVectors(slot.position, position))[0];
+    removePeg(direction, position) {
+      return removeMatchingElements(this.slots, (slot) => slot.direction == direction && sameVectors(slot.position, position))[0];
     }
-    connect(color, slots) {
-      const connection = new Connection(color, slots);
+    connect(direction, slots) {
+      const connection = new Connection(direction, slots);
       if (!this.isValidConnection(connection))
         return null;
       this.connections.push(connection);
       return connection;
     }
-    disconnect(color, positions) {
+    disconnect(direction, positions) {
       return removeMatchingElements(this.connections, (connection) => {
         const connectionSlotPositions = connection.slots.map((slot) => slot.position);
-        return connection.color == color && samePositions(positions, connectionSlotPositions);
+        return connection.direction == direction && samePositions(positions, connectionSlotPositions);
       });
     }
     neighboringSlots(position) {
@@ -318,8 +318,8 @@
         { row: this.size - 1, column: this.size - 1 }
       ];
     }
-    onOpponentBorder(position, color) {
-      return color == "RED" /* Red */ && (position.column == 0 || position.column == this.size - 1) || color == "BLUE" /* Blue */ && (position.row == 0 || position.row == this.size - 1);
+    onOpponentBorder(position, direction) {
+      return direction == "VERTICAL" /* Vertical */ && (position.column == 0 || position.column == this.size - 1) || direction == "HORIZONTAL" /* Horizontal */ && (position.row == 0 || position.row == this.size - 1);
     }
     neighboringPositions(position) {
       const potentialNeighbors = _Board.neighborDiffs.map((diff) => addVectors(position, diff));
@@ -355,7 +355,7 @@
   // src/twixt/game.ts
   var Game = class {
     constructor() {
-      this.players = [new Player("RED" /* Red */), new Player("BLUE" /* Blue */)];
+      this.players = [new Player("VERTICAL" /* Vertical */), new Player("HORIZONTAL" /* Horizontal */)];
       this.board = new Board();
       this.currentPlayerIndex = 0;
       this.moves = [];
@@ -364,7 +364,7 @@
         while (slotsToConnect.length > 0) {
           const slotToConnect = slotsToConnect.shift();
           slotToConnect[connection] = true;
-          const neighboringSlotsToConnect = this.board.neighboringSlots(slotToConnect.position).filter((slot2) => slot2.color == this.currentPlayer.color).filter((slot2) => !slot2[connection]);
+          const neighboringSlotsToConnect = this.board.neighboringSlots(slotToConnect.position).filter((slot2) => slot2.direction == this.currentPlayer.direction).filter((slot2) => !slot2[connection]);
           slotsToConnect.push(...neighboringSlotsToConnect);
         }
       };
@@ -378,17 +378,17 @@
     get winner() {
       const slotsToCheck = this.board.slots.filter((slot) => slot.isOccupied);
       const winningSlot = slotsToCheck.find((slot) => slot.isConnectedToStart && slot.isConnectedToEnd);
-      return winningSlot ? winningSlot.color : null;
+      return winningSlot ? winningSlot.direction : null;
     }
     placePeg(position) {
-      const slot = this.board.place(this.currentPlayer.color, position);
+      const slot = this.board.place(this.currentPlayer.direction, position);
       if (!slot)
         return { slot, connectionsAdded: [] };
       this.moves.push(position);
-      if (position.row == 0 && this.currentPlayer.color == "RED" /* Red */ || position.column == 0 && this.currentPlayer.color == "BLUE" /* Blue */) {
+      if (position.row == 0 && this.currentPlayer.direction == "VERTICAL" /* Vertical */ || position.column == 0 && this.currentPlayer.direction == "HORIZONTAL" /* Horizontal */) {
         slot.isConnectedToStart = true;
       }
-      if (position.row == this.board.size - 1 && this.currentPlayer.color == "RED" /* Red */ || position.column == this.board.size - 1 && this.currentPlayer.color == "BLUE" /* Blue */) {
+      if (position.row == this.board.size - 1 && this.currentPlayer.direction == "VERTICAL" /* Vertical */ || position.column == this.board.size - 1 && this.currentPlayer.direction == "HORIZONTAL" /* Horizontal */) {
         slot.isConnectedToEnd = true;
       }
       const connections = this.addConnections(position, slot);
@@ -396,13 +396,13 @@
       return { slot, connectionsAdded: connections };
     }
     removePeg(position) {
-      const removed = this.board.removePeg(this.waitingPlayer.color, position);
+      const removed = this.board.removePeg(this.waitingPlayer.direction, position);
       if (!removed)
         return;
       this.moves.push(position);
       const neighboringSlots = this.board.neighboringSlots(position);
       for (let neighbor of neighboringSlots) {
-        this.board.disconnect(this.waitingPlayer.color, [position, neighbor.position]);
+        this.board.disconnect(this.waitingPlayer.direction, [position, neighbor.position]);
       }
       this.endTurn();
     }
@@ -424,7 +424,7 @@
     }
     addConnections(position, slot) {
       const neighboringSlots = this.board.neighboringSlots(position);
-      const neighboringSlotsWithColor = neighboringSlots.filter((slot2) => slot2.color == this.currentPlayer.color);
+      const neighboringSlotsWithColor = neighboringSlots.filter((slot2) => slot2.direction == this.currentPlayer.direction);
       const connections = neighboringSlotsWithColor.map((neighbor) => this.connect(neighbor, slot));
       if ([this.board.slotAt(position), ...neighboringSlotsWithColor].some((slot2) => slot2.isConnectedToStart)) {
         this.propagateToNeighbors(this.board.slotAt(position), "isConnectedToStart");
@@ -435,7 +435,7 @@
       return connections.filter(Boolean);
     }
     connect(slot1, slot2) {
-      return this.board.connect(this.currentPlayer.color, [slot1, slot2]);
+      return this.board.connect(this.currentPlayer.direction, [slot1, slot2]);
     }
     get waitingPlayerIndex() {
       return (this.currentPlayerIndex + 1) % this.players.length;
@@ -491,7 +491,7 @@
     canvas.drawCircle(
       slotCoordinates,
       pegRadius(pegAnimation.completion, radiusValue, canvas),
-      COLORS[pegAnimation.peg.color]
+      COLORS[ColorForDirection.get(pegAnimation.peg.direction)]
     );
     if (pegAnimation.completion < 1)
       pegAnimation.completion = nextFrame(pegAnimation.completion, ANIMATION_SPEED);
@@ -519,7 +519,7 @@
   var drawConnection = (animatedConnection, canvas, gapSize) => {
     const { connection, completion } = animatedConnection;
     canvas.drawLine(
-      COLORS[connection.color],
+      COLORS[ColorForDirection.get(connection.direction)],
       connectionWidth(canvas),
       positionToCoordinates(connection.slots[0].position, gapSize),
       positionToCoordinates(connection.slots[1].position, gapSize)
@@ -724,10 +724,14 @@
   };
 
   // src/twixt/gameUI.ts
+  var ColorForDirection = /* @__PURE__ */ new Map([
+    ["VERTICAL" /* Vertical */, "RED" /* Red */],
+    ["HORIZONTAL" /* Horizontal */, "BLUE" /* Blue */]
+  ]);
   var GameUI = class {
     constructor(game, gameData, player, onComplete) {
       this.canvasClicked = (cursorPosition) => {
-        if (this.game.currentPlayer.color != this.color && !this.moveInProgress)
+        if (ColorForDirection.get(this.game.currentPlayer.direction) != this.color && !this.moveInProgress)
           return;
         const positionClicked = {
           row: Math.floor(cursorPosition.y / this.slotGapSize) - BOARD_PADDING,
@@ -754,7 +758,7 @@
         console.log("Confirm button deactivated");
       };
       this.moveMade = (position) => {
-        console.debug(`Move made by ${this.game.currentPlayer.color}: { row: ${position.row}, column: ${position.column} }`);
+        console.debug(`Move made by ${this.game.currentPlayer.direction}: { row: ${position.row}, column: ${position.column} }`);
         if (this.moveInProgress) {
           this.moveInProgress = null;
         } else {
@@ -765,9 +769,10 @@
           this.playerStatusSpan.innerText = "wins!";
           this.onComplete();
         } else {
-          this.currentPlayerSpan.innerText = this.game.currentPlayer.color;
-          this.currentPlayerSpan.setAttribute("color", this.game.currentPlayer.color);
-          console.log("Set span to ", this.game.currentPlayer.color);
+          const color = ColorForDirection.get(this.game.currentPlayer.direction);
+          this.currentPlayerSpan.innerText = color;
+          this.currentPlayerSpan.setAttribute("color", color);
+          console.log("Set span to ", color);
         }
       };
       this.windowResized = () => {
@@ -812,9 +817,6 @@
     setPlayerColor(span, color) {
       span.innerText = color;
       span.setAttribute("color", color);
-    }
-    toggleConfirmButton() {
-      this.confirmButton;
     }
   };
 

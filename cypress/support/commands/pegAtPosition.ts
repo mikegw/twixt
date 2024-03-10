@@ -1,5 +1,5 @@
 import { positionToCoordinates } from "../helpers/positionToCoordinates";
-import { Color } from "../../../src/twixt/player";
+import { Color } from "../../../src/twixt/gameUI";
 import { COLORS } from "../../../src/twixt/gameUI/renderer";
 import { Position } from "../../../src/twixt/board";
 
@@ -39,7 +39,7 @@ const colorOfPixel = (ctx: CanvasRenderingContext2D, coordinates: { x: number, y
   return color
 }
 
-function retry(callback: () => any, attempts = 5) {
+function retry(callback: () => any, attempts = 5): any {
   const result = callback()
   if (result) return cy.wrap(result)
   if (attempts == 0) return cy.wrap(null)

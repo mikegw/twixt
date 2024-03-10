@@ -1,7 +1,7 @@
 import { addVectors, sameVectors, Vector } from "./board/vector";
 import { Slot } from "./board/slot";
 import { Connection } from "./board/connection";
-import { Color } from "./player";
+import { Direction } from "./player";
 import { serializeMoves } from "./parse";
 
 export type Position = Vector
@@ -32,29 +32,29 @@ export class Board {
     this.size = size
   }
 
-  place(color: Color, position: Position): Slot {
+  place(direction: Direction, position: Position): Slot {
     if (!this.isValidPosition(position)) return null
 
-    if (this.onOpponentBorder(position, color)) return null
+    if (this.onOpponentBorder(position, direction)) return null
 
     let slot = this.slotAt(position)
     if (slot) return null
 
-    console.log(`Placing a ${color} peg at ${serializeMoves([position])}`)
+    console.log(`Placing a ${direction} peg at ${serializeMoves([position])}`)
 
     slot = new Slot(position)
-    slot.color = color
+    slot.direction = direction
     this.slots.push(slot)
 
     return slot
   }
 
-  removePeg(color: Color, position: Position) {
-    return removeMatchingElements(this.slots, slot => slot.color == color && sameVectors(slot.position, position))[0]
+  removePeg(direction: Direction, position: Position) {
+    return removeMatchingElements(this.slots, slot => slot.direction == direction && sameVectors(slot.position, position))[0]
   }
 
-  connect(color: Color, slots: [Slot, Slot]): Connection {
-    const connection = new Connection(color, slots)
+  connect(direction: Direction, slots: [Slot, Slot]): Connection {
+    const connection = new Connection(direction, slots)
     if(!this.isValidConnection(connection)) return null;
 
     this.connections.push(connection)
@@ -62,11 +62,11 @@ export class Board {
     return connection
   }
 
-  disconnect(color: Color, positions: [Position, Position]) {
+  disconnect(direction: Direction, positions: [Position, Position]) {
     return removeMatchingElements(this.connections, connection => {
       const connectionSlotPositions = connection.slots.map((slot: Slot) => slot.position)
 
-      return connection.color == color && samePositions(positions, connectionSlotPositions)
+      return connection.direction == direction && samePositions(positions, connectionSlotPositions)
     })
   }
 
@@ -107,10 +107,10 @@ export class Board {
     ]
   }
 
-  private onOpponentBorder(position: Position, color: Color) {
+  private onOpponentBorder(position: Position, direction: Direction) {
     return (
-      color == Color.Red && (position.column == 0 || position.column == this.size - 1) ||
-      color == Color.Blue && (position.row == 0 || position.row == this.size - 1)
+      direction == Direction.Vertical && (position.column == 0 || position.column == this.size - 1) ||
+      direction == Direction.Horizontal && (position.row == 0 || position.row == this.size - 1)
     )
   }
 

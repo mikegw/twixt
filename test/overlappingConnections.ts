@@ -2,10 +2,10 @@ import { expect } from "chai";
 import { Position } from "../src/twixt/board";
 import { Slot } from "../src/twixt/board/slot";
 import { Connection } from "../src/twixt/board/connection";
-import { Color } from "../src/twixt/player";
+import { Direction } from "../src/twixt/player";
 
 function buildConnection(position1: Position, position2: Position): Connection {
-  return new Connection(Color.Red, [new Slot(position1), new Slot(position2)])
+  return new Connection(Direction.Vertical, [new Slot(position1), new Slot(position2)])
 }
 describe('checking whether two connections overlap', () => {
   context('when the connections do not share anything', () => {

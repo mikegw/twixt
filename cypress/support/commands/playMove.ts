@@ -1,5 +1,5 @@
 import { Position } from "../../../src/twixt/board";
-import { Color } from "../../../src/twixt/player";
+import { Color } from "../../../src/twixt/gameUI";
 import { positionToCoordinates } from "../helpers/positionToCoordinates";
 
 export const playMove = (position: Position, color: Color, confirm = true) => {
