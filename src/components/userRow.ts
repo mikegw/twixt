@@ -39,6 +39,7 @@ export class UserRow {
 
     this.playGameButton.addEventListener('click', (e) => {
       e.preventDefault()
+      console.log(`Loading game with ${options.name} (as ${GlobalContext.currentUser.name})`)
 
       GlobalContext.gameId = this.element.attributes.getNamedItem('game-id').value
       GlobalContext.gameInProgressKey = this.element.attributes.getNamedItem('game-in-progress-key').value

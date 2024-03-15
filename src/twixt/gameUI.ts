@@ -107,6 +107,7 @@ export class GameUI {
     } else {
       this.game.placePeg(position as Position)
     }
+    this.renderer.setConnectionDirection(this.game.currentPlayer.direction)
     this.render()
     if (this.game.winner) {
       this.playerStatusSpan.innerText = 'wins!'
@@ -134,6 +135,7 @@ export class GameUI {
   }
 
   private setPlayerColor(span: HTMLSpanElement, color: Color) {
+    this.renderer.setBoundariesDirection(color == Color.Red ? Direction.Vertical : Direction.Horizontal)
     span.innerText = color
     span.setAttribute('color', color)
   }

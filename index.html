@@ -7,6 +7,8 @@
 
     <link rel="icon" href="public/icon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="public/styles.css" />
+    <link rel="stylesheet" href="public/game.css" />
+
     <link rel="manifest" href="public/manifest.json">
 
     <script src="https://kit.fontawesome.com/5d6b09a2c5.js" crossorigin="anonymous"></script>
@@ -85,7 +87,10 @@
           <i class="fa-solid fa-arrow-left fa-xl"></i>
         </button>
 
-        <canvas id="game-canvas" width=800 height=800></canvas>
+        <div id="canvas-wrapper">
+          <canvas id="game-canvas" width=800 height=800></canvas>
+        </div>
+
         <section>
           <p>You are <span id="player-color" class="player-color"></span></p>
           <p id="game-status"><span id="current-player" class="player-color"></span> <span id="player-status">to move</span></p>

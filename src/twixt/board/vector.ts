@@ -3,14 +3,14 @@ export type Vector = {
   column: number
 }
 
-export const addVectors = (v1: Vector, v2: Vector): Vector => {
+export const addVectors = (...vectors: Vector[]): Vector => {
   return {
-    row: v1.row + v2.row,
-    column: v1.column + v2.column
+    row: vectors.reduce((sum, vector) => sum + vector.row, 0),
+    column: vectors.reduce((sum, vector) => sum + vector.column, 0)
   }
 }
 
-export const scale = (vector: Vector, scalar: number) => {
+export const scale = (vector: Vector, scalar: number): Vector => {
   return {
     row: vector.row * scalar,
     column: vector.column * scalar
@@ -28,6 +28,10 @@ export const sameVectors = (vector1: Vector, vector2: Vector): boolean => {
 
 export const vToS = (vector: Vector): String => {
   return `{row: ${vector.row}, column: ${vector.column}}`
+}
+
+export const vectorLength = (vector: Vector): number => {
+  return Math.sqrt(vector.row ** 2 + vector.column ** 2)
 }
 
 export function intersects([a, b]: [Vector, Vector], [c, d]: [Vector, Vector]) {

@@ -3,8 +3,8 @@ import { Canvas } from "../canvas";
 import { Connection } from "../../board/connection";
 import { addVectors, scale, subtractVectors } from "../../board/vector";
 import { Position } from "../../board";
-import { easeInOutCubic, nextFrame } from "./renderPeg";
 import { ColorForDirection } from "../../gameUI";
+import { easeInOutCubic, setNextFrame } from "./animation";
 
 const CONNECTION_WIDTH = 0.004
 const ANIMATION_SPEED = 0.06
@@ -15,16 +15,19 @@ export type AnimatedConnection = {
 }
 
 export const drawConnection = (animatedConnection: AnimatedConnection, canvas: Canvas, gapSize: number) => {
-  const { connection, completion } = animatedConnection
+  const positions = animatedPositions(animatedConnection)
+  const coordinates = positions.map(position => {
+    return positionToCoordinates(position, gapSize)
+  })
 
   canvas.drawLine(
-    COLORS[ColorForDirection.get(connection.direction)],
+    COLORS[ColorForDirection.get(animatedConnection.connection.direction)],
     connectionWidth(canvas),
-    positionToCoordinates(connection.slots[0].position, gapSize),
-    positionToCoordinates(connection.slots[1].position, gapSize)
+    coordinates[0],
+    coordinates[1]
   )
 
-  if (completion < 1) animatedConnection.completion = nextFrame(completion, ANIMATION_SPEED)
+  setNextFrame(animatedConnection, ANIMATION_SPEED)
 }
 
 const connectionWidth = (canvas: Canvas) => {

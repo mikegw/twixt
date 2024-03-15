@@ -4,14 +4,18 @@ import { Direction } from "../player";
 import { AnimatedPeg, drawPeg, pegRadius } from "./renderer/renderPeg";
 import { AnimatedConnection, drawConnection } from "./renderer/renderConnection";
 import { Color } from "../gameUI";
+import { addVectors, scale, subtractVectors, Vector, vectorLength } from "../board/vector";
+import { drawElectrifiedLine } from "./renderer/renderElectrifiedLine";
 
 const EMPTY_SLOT_RADIUS = 0.003
-const BOUNDARY_WIDTH = 0.002
+const BOUNDARY_WIDTH = 0.003
 
 const EMPTY_SLOT_COLOR = '#999'
 const HIGHLIGHT_COLOR = '#FFFFFF22'
 
-export const COLORS: Record<Color, string> = {
+type ColorHex =  '#F72595' | '#4682F4'
+
+export const COLORS: Record<Color, ColorHex> = {
   'RED': '#F72595',
   'BLUE': '#4682F4'
 }
@@ -20,9 +24,17 @@ export const BOARD_PADDING = 1
 
 const LABEL_COLOR = '#FAD240'
 
+type Boundary = {
+  color: ColorHex,
+  from: Coordinates,
+  to: Coordinates
+}
+
 export class Renderer {
   canvas: Canvas
   board: Board
+  connectionDirection: Direction
+  boundaryDirection: Direction
   padding = BOARD_PADDING
   animatedPegs: AnimatedPeg[] = []
   animatedConnections: AnimatedConnection[] = []
@@ -37,16 +49,25 @@ export class Renderer {
     this.prerenderEmptyBoard()
   }
 
+  setConnectionDirection(direction: Direction) {
+    this.connectionDirection = direction
+  }
+
+  setBoundariesDirection(direction: Direction) {
+    this.boundaryDirection = direction
+  }
+
   draw() {
     window.requestAnimationFrame(() => {
       this.canvas.clear()
       this.canvas.prerender()
       this.drawConnections()
       this.drawPegs()
+      this.drawElectricity()
 
       this.highlightLastPegDrawn()
 
-      if (this.animatedPegs.some(animation => animation.completion < 1)) this.draw()
+      this.draw()
     })
   }
 
@@ -72,19 +93,49 @@ export class Renderer {
     }
   }
 
-  private drawBoundaries() {
+  private corners() {
     const min = this.slotGapSize * (1 + BOARD_PADDING)
     const max = this.canvas.size - min
 
-    const topLeft = { x: min, y: min }
-    const topRight = { x: max, y: min }
-    const bottomLeft = { x: min, y: max }
-    const bottomRight = { x: max, y: max }
+    return {
+      topLeft: { x: min, y: min },
+      topRight: { x: max, y: min },
+      bottomLeft: { x: min, y: max },
+      bottomRight: { x: max, y: max }
+    }
+  }
 
-    this.canvas.drawLine(COLORS[Color.Red], this.boundaryWidth, topLeft, topRight, true)
-    this.canvas.drawLine(COLORS[Color.Red], this.boundaryWidth, bottomLeft, bottomRight, true)
-    this.canvas.drawLine(COLORS[Color.Blue], this.boundaryWidth, topLeft, bottomLeft, true)
-    this.canvas.drawLine(COLORS[Color.Blue], this.boundaryWidth, topRight, bottomRight, true)
+  private verticalBoundaries(): Boundary[] {
+    const corners = this.corners()
+
+    return [
+      { color: COLORS[Color.Red], from: corners.topLeft, to: corners.topRight },
+      { color: COLORS[Color.Red], from: corners.bottomLeft, to: corners.bottomRight },
+    ]
+  }
+
+  private horizontalBoundaries(): Boundary[] {
+    const corners = this.corners()
+
+    return [
+      { color: COLORS[Color.Blue], from: corners.topLeft, to: corners.bottomLeft },
+      { color: COLORS[Color.Blue], from: corners.topRight, to: corners.bottomRight },
+    ]
+  }
+
+  private drawBoundaries() {
+    for (let boundary of (this.verticalBoundaries().concat(this.horizontalBoundaries()))) {
+      this.canvas.drawLine(boundary.color, this.boundaryWidth, boundary.from, boundary.to, true)
+    }
+  }
+
+  private electrifyBoundaries() {
+    const electrifiedBoundaries =
+      this.boundaryDirection == Direction.Vertical ? this.verticalBoundaries() : this.horizontalBoundaries()
+
+    for (let boundary of electrifiedBoundaries) {
+      drawElectrifiedLine(boundary.from, boundary.to, this.canvas,'high')
+    }
   }
 
   private drawConnections() {
@@ -109,6 +160,20 @@ export class Renderer {
         this.animatedPegs.push(animatedPeg)
       }
       drawPeg(animatedPeg, this.canvas, this.slotGapSize)
+    }
+  }
+
+  private drawElectricity() {
+    this.electrifyBoundaries()
+    for (let connection of this.board.connections) {
+      if (connection.direction == this.connectionDirection) {
+        drawElectrifiedLine(
+          positionToCoordinates(connection.slots[0].position, this.slotGapSize),
+          positionToCoordinates(connection.slots[1].position, this.slotGapSize),
+          this.canvas,
+          'low'
+        )
+      }
     }
   }
 

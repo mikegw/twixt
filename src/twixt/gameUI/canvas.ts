@@ -17,7 +17,8 @@ export class Canvas {
   }
 
   setDimensions = () => {
-    const minSize = Math.min(this.canvas.offsetHeight, this.canvas.offsetWidth)
+    console.log(this.canvas.height, this.canvas.width)
+    const minSize = Math.min(this.canvas.parentElement.offsetHeight, this.canvas.parentElement.offsetWidth)
 
     this.canvas.style.height = `${minSize}px`
     this.canvas.style.width = `${minSize}px`
@@ -51,14 +52,24 @@ export class Canvas {
   }
 
   drawLine(color: string, width: number, from: Coordinates, to: Coordinates, prerender?: boolean) {
+    this.drawPath(color, width, [from, to], prerender)
+  }
+
+  drawPath(color: string, width: number, coordinates: Coordinates[], prerender?: boolean) {
     const ctx = prerender ? this.offscreenCtx : this.ctx
 
     ctx.strokeStyle = color
     ctx.lineWidth = width * this.pixelRatio
     ctx.lineCap = "round"
     ctx.beginPath()
-    ctx.moveTo(from.x, from.y)
-    ctx.lineTo(to.x, to.y)
+
+    const startCoordinates = coordinates.shift()
+    ctx.moveTo(startCoordinates.x, startCoordinates.y)
+
+    for (let nextCoordinate of coordinates) {
+      ctx.lineTo(nextCoordinate.x, nextCoordinate.y)
+    }
+
     ctx.stroke();
   }
 

@@ -44,6 +44,7 @@
       });
       this.playGameButton.addEventListener("click", (e) => {
         e.preventDefault();
+        console.log(`Loading game with ${options.name} (as ${GlobalContext2.currentUser.name})`);
         GlobalContext2.gameId = this.element.attributes.getNamedItem("game-id").value;
         GlobalContext2.gameInProgressKey = this.element.attributes.getNamedItem("game-in-progress-key").value;
         navigateTo(Pages.PlayGame);
@@ -176,14 +177,26 @@
   };
 
   // src/twixt/board/vector.ts
-  var addVectors = (v1, v2) => {
+  var addVectors = (...vectors) => {
     return {
-      row: v1.row + v2.row,
-      column: v1.column + v2.column
+      row: vectors.reduce((sum, vector) => sum + vector.row, 0),
+      column: vectors.reduce((sum, vector) => sum + vector.column, 0)
     };
+  };
+  var scale = (vector, scalar) => {
+    return {
+      row: vector.row * scalar,
+      column: vector.column * scalar
+    };
+  };
+  var subtractVectors = (v1, v2) => {
+    return addVectors(v1, scale(v2, -1));
   };
   var sameVectors = (vector1, vector2) => {
     return vector1.row == vector2.row && vector1.column == vector2.column;
+  };
+  var vectorLength = (vector) => {
+    return Math.sqrt(vector.row ** 2 + vector.column ** 2);
   };
   function intersects([a, b], [c, d]) {
     const determinant = (b.row - a.row) * (d.column - c.column) - (d.row - c.row) * (b.column - a.column);
@@ -483,6 +496,19 @@
     }
   };
 
+  // src/twixt/gameUI/renderer/animation.ts
+  function easeInOutCubic(x) {
+    return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+  }
+  function setNextFrame(animation, speed) {
+    if (animation.completion < 1) {
+      animation.completion = nextFrame(animation.completion, speed);
+    }
+  }
+  function nextFrame(animationFrame, speed) {
+    return Math.min(animationFrame + speed, 1);
+  }
+
   // src/twixt/gameUI/renderer/renderPeg.ts
   var PEG_RADIUS = 525e-5;
   var ANIMATION_SPEED = 0.05;
@@ -493,8 +519,7 @@
       pegRadius(pegAnimation.completion, radiusValue, canvas),
       COLORS[ColorForDirection.get(pegAnimation.peg.direction)]
     );
-    if (pegAnimation.completion < 1)
-      pegAnimation.completion = nextFrame(pegAnimation.completion, ANIMATION_SPEED);
+    setNextFrame(pegAnimation, ANIMATION_SPEED);
   };
   var pegRadius = (completion, animation, canvas) => {
     return Math.ceil(PEG_RADIUS * canvas.size * animation(completion));
@@ -506,34 +531,120 @@
       return easeInOutCubic(1.5 - (completion - 0.75) * 2);
     }
   };
-  function easeInOutCubic(x) {
-    return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
-  }
-  function nextFrame(animationFrame, speed) {
-    return Math.min(animationFrame + speed, 1);
-  }
 
   // src/twixt/gameUI/renderer/renderConnection.ts
   var CONNECTION_WIDTH = 4e-3;
   var ANIMATION_SPEED2 = 0.06;
   var drawConnection = (animatedConnection, canvas, gapSize) => {
-    const { connection, completion } = animatedConnection;
+    const positions = animatedPositions(animatedConnection);
+    const coordinates = positions.map((position) => {
+      return positionToCoordinates(position, gapSize);
+    });
     canvas.drawLine(
-      COLORS[ColorForDirection.get(connection.direction)],
+      COLORS[ColorForDirection.get(animatedConnection.connection.direction)],
       connectionWidth(canvas),
-      positionToCoordinates(connection.slots[0].position, gapSize),
-      positionToCoordinates(connection.slots[1].position, gapSize)
+      coordinates[0],
+      coordinates[1]
     );
-    if (completion < 1)
-      animatedConnection.completion = nextFrame(completion, ANIMATION_SPEED2);
+    setNextFrame(animatedConnection, ANIMATION_SPEED2);
   };
   var connectionWidth = (canvas) => {
     return Math.ceil(CONNECTION_WIDTH * canvas.size);
   };
+  var animatedPositions = ({ connection, completion }) => {
+    const direction = subtractVectors(connection.positions[1], connection.positions[0]);
+    const scaledDirection = scale(direction, easeInOutCubic(completion));
+    return [connection.positions[0], addVectors(connection.positions[0], scaledDirection)];
+  };
+
+  // src/twixt/gameUI/renderer/renderElectrifiedLine.ts
+  var ELECTRICITY_WIDTH = 15e-4;
+  var ANIMATION_SPEED3 = 2e-3;
+  var ElectrifiedLines = [];
+  var drawElectrifiedLine = (from, to, canvas, fidelity) => {
+    const fromVector = coordinatesToVector(from);
+    const toVector = coordinatesToVector(to);
+    const electricityWidth = Math.ceil(ELECTRICITY_WIDTH * canvas.size);
+    const electrifiedLine = ElectrifiedLines.find((line) => {
+      return sameVectors(line.from, fromVector) && sameVectors(line.to, toVector);
+    }) || createElectrifiedLine(fromVector, toVector, fidelity);
+    let color;
+    for (let spark of electrifiedLine.sparks) {
+      color = `rgba(255, 255, 255, ${spark.intensity})`;
+      canvas.drawPath(color, electricityWidth, sparkCoordinates(spark));
+      color = `rgba(255, 255, 255, ${spark.intensity / 4})`;
+      canvas.drawPath(color, electricityWidth * 3, sparkCoordinates(spark));
+      setNextFrame(spark, spark.speed);
+    }
+    const completedSparks = electrifiedLine.sparks.filter((spark) => spark.completion >= 1).length;
+    if (completedSparks == 0 && electrifiedLine.sparks.length > 1)
+      return;
+    electrifiedLine.sparks = electrifiedLine.sparks.filter((spark) => spark.completion < 1);
+    if (electrifiedLine.sparks.length >= 3)
+      return;
+    const newSparks = randomInt(4);
+    for (let i = 0; i < newSparks; i++) {
+      electrifiedLine.sparks.push(createSpark(fromVector, toVector, fidelity));
+    }
+  };
+  var createElectrifiedLine = (from, to, fidelity) => {
+    const sparks = Array.from({ length: randomInt(3) + 3 }, () => createSpark(from, to, fidelity));
+    const electrifiedLine = { from, to, sparks };
+    ElectrifiedLines.push(electrifiedLine);
+    return electrifiedLine;
+  };
+  var createSpark = (from, to, fidelity) => {
+    const segments = fidelity == "high" ? 70 + randomInt(7) : 10 + randomInt(3);
+    const lineVector = subtractVectors(to, from);
+    const lineSegment = scale(lineVector, 1 / segments);
+    const segmentLength = Math.round(vectorLength(lineSegment));
+    const perturbationVector = { row: -lineSegment.column, column: lineSegment.row };
+    const perturbationScale = 0.2;
+    const perturbationScaleOffset = perturbationScale / 2;
+    const randomPerturbation = () => Math.random() ** 2 * (Math.random() * perturbationScale - perturbationScaleOffset);
+    const perturbations = [];
+    const minAmplitudes = [];
+    for (let i = 0; i <= segments; i++) {
+      const nextSegment = addVectors(from, scale(lineSegment, i));
+      minAmplitudes.push(nextSegment);
+      const parallelPerturbationSize = segmentLength * randomPerturbation() * 0.5;
+      const perpendicularPerturbationSize = segmentLength * randomPerturbation() * 0.5;
+      const parallelPerturbation = scale(lineSegment, parallelPerturbationSize);
+      const perpendicularPerturbation = scale(perturbationVector, perpendicularPerturbationSize);
+      const perturbed = addVectors(parallelPerturbation, perpendicularPerturbation);
+      perturbations.push(perturbed);
+    }
+    const intensity = 0.1 + 0.1 * Math.random();
+    const speed = ANIMATION_SPEED3 * (0.7 + Math.random() * 0.6);
+    return { perturbations, minAmplitudes, completion: 0, intensity, speed };
+  };
+  var sparkCoordinates = (spark) => {
+    const perturbations = spark.perturbations.map((p) => scale(p, scaleCompletion(spark.completion)));
+    const animatedAmplitudes = perturbations.map((p, index) => addVectors(spark.minAmplitudes[index], p));
+    return animatedAmplitudes.map(vectorToCoordinates);
+  };
+  var coordinatesToVector = (coordinates) => {
+    return {
+      row: coordinates.y,
+      column: coordinates.x
+    };
+  };
+  var vectorToCoordinates = (vector) => {
+    return {
+      x: vector.column,
+      y: vector.row
+    };
+  };
+  function randomInt(max) {
+    return Math.floor(Math.random() * max);
+  }
+  function scaleCompletion(completion) {
+    return easeInOutCubic((completion >= 0.5 ? 1 - completion : completion) * 2);
+  }
 
   // src/twixt/gameUI/renderer.ts
   var EMPTY_SLOT_RADIUS = 3e-3;
-  var BOUNDARY_WIDTH = 2e-3;
+  var BOUNDARY_WIDTH = 3e-3;
   var EMPTY_SLOT_COLOR = "#999";
   var HIGHLIGHT_COLOR = "#FFFFFF22";
   var COLORS = {
@@ -554,15 +665,21 @@
     get slotGapSize() {
       return this.canvas.size / (this.board.size + 2 * this.padding);
     }
+    setConnectionDirection(direction) {
+      this.connectionDirection = direction;
+    }
+    setBoundariesDirection(direction) {
+      this.boundaryDirection = direction;
+    }
     draw() {
       window.requestAnimationFrame(() => {
         this.canvas.clear();
         this.canvas.prerender();
         this.drawConnections();
         this.drawPegs();
+        this.drawElectricity();
         this.highlightLastPegDrawn();
-        if (this.animatedPegs.some((animation) => animation.completion < 1))
-          this.draw();
+        this.draw();
       });
     }
     prerenderEmptyBoard() {
@@ -585,17 +702,40 @@
         }
       }
     }
-    drawBoundaries() {
+    corners() {
       const min = this.slotGapSize * (1 + BOARD_PADDING);
       const max = this.canvas.size - min;
-      const topLeft = { x: min, y: min };
-      const topRight = { x: max, y: min };
-      const bottomLeft = { x: min, y: max };
-      const bottomRight = { x: max, y: max };
-      this.canvas.drawLine(COLORS["RED" /* Red */], this.boundaryWidth, topLeft, topRight, true);
-      this.canvas.drawLine(COLORS["RED" /* Red */], this.boundaryWidth, bottomLeft, bottomRight, true);
-      this.canvas.drawLine(COLORS["BLUE" /* Blue */], this.boundaryWidth, topLeft, bottomLeft, true);
-      this.canvas.drawLine(COLORS["BLUE" /* Blue */], this.boundaryWidth, topRight, bottomRight, true);
+      return {
+        topLeft: { x: min, y: min },
+        topRight: { x: max, y: min },
+        bottomLeft: { x: min, y: max },
+        bottomRight: { x: max, y: max }
+      };
+    }
+    verticalBoundaries() {
+      const corners = this.corners();
+      return [
+        { color: COLORS["RED" /* Red */], from: corners.topLeft, to: corners.topRight },
+        { color: COLORS["RED" /* Red */], from: corners.bottomLeft, to: corners.bottomRight }
+      ];
+    }
+    horizontalBoundaries() {
+      const corners = this.corners();
+      return [
+        { color: COLORS["BLUE" /* Blue */], from: corners.topLeft, to: corners.bottomLeft },
+        { color: COLORS["BLUE" /* Blue */], from: corners.topRight, to: corners.bottomRight }
+      ];
+    }
+    drawBoundaries() {
+      for (let boundary of this.verticalBoundaries().concat(this.horizontalBoundaries())) {
+        this.canvas.drawLine(boundary.color, this.boundaryWidth, boundary.from, boundary.to, true);
+      }
+    }
+    electrifyBoundaries() {
+      const electrifiedBoundaries = this.boundaryDirection == "VERTICAL" /* Vertical */ ? this.verticalBoundaries() : this.horizontalBoundaries();
+      for (let boundary of electrifiedBoundaries) {
+        drawElectrifiedLine(boundary.from, boundary.to, this.canvas, "high");
+      }
     }
     drawConnections() {
       for (let connection of this.board.connections) {
@@ -615,6 +755,19 @@
           this.animatedPegs.push(animatedPeg);
         }
         drawPeg(animatedPeg, this.canvas, this.slotGapSize);
+      }
+    }
+    drawElectricity() {
+      this.electrifyBoundaries();
+      for (let connection of this.board.connections) {
+        if (connection.direction == this.connectionDirection) {
+          drawElectrifiedLine(
+            positionToCoordinates(connection.slots[0].position, this.slotGapSize),
+            positionToCoordinates(connection.slots[1].position, this.slotGapSize),
+            this.canvas,
+            "low"
+          );
+        }
       }
     }
     highlightLastPegDrawn() {
@@ -664,7 +817,8 @@
       this.canvas = document.getElementById("game-canvas");
       this.ctx = this.canvas.getContext("2d");
       this.setDimensions = () => {
-        const minSize = Math.min(this.canvas.offsetHeight, this.canvas.offsetWidth);
+        console.log(this.canvas.height, this.canvas.width);
+        const minSize = Math.min(this.canvas.parentElement.offsetHeight, this.canvas.parentElement.offsetWidth);
         this.canvas.style.height = `${minSize}px`;
         this.canvas.style.width = `${minSize}px`;
         this.canvas.width = minSize * this.pixelRatio;
@@ -693,13 +847,19 @@
       ctx.fill();
     }
     drawLine(color, width, from, to, prerender) {
+      this.drawPath(color, width, [from, to], prerender);
+    }
+    drawPath(color, width, coordinates, prerender) {
       const ctx = prerender ? this.offscreenCtx : this.ctx;
       ctx.strokeStyle = color;
       ctx.lineWidth = width * this.pixelRatio;
       ctx.lineCap = "round";
       ctx.beginPath();
-      ctx.moveTo(from.x, from.y);
-      ctx.lineTo(to.x, to.y);
+      const startCoordinates = coordinates.shift();
+      ctx.moveTo(startCoordinates.x, startCoordinates.y);
+      for (let nextCoordinate of coordinates) {
+        ctx.lineTo(nextCoordinate.x, nextCoordinate.y);
+      }
       ctx.stroke();
     }
     drawText(color, text, position, prerender = false) {
@@ -764,6 +924,7 @@
         } else {
           this.game.placePeg(position);
         }
+        this.renderer.setConnectionDirection(this.game.currentPlayer.direction);
         this.render();
         if (this.game.winner) {
           this.playerStatusSpan.innerText = "wins!";
@@ -815,6 +976,7 @@
       return this.canvas.size / (this.game.board.size + 2 * BOARD_PADDING);
     }
     setPlayerColor(span, color) {
+      this.renderer.setBoundariesDirection(color == "RED" /* Red */ ? "VERTICAL" /* Vertical */ : "HORIZONTAL" /* Horizontal */);
       span.innerText = color;
       span.setAttribute("color", color);
     }
