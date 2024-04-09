@@ -10,6 +10,8 @@ import { playMoves } from "./commands/playMoves";
 import { pegAt } from "./commands/pegAt";
 import { currentPlayer } from "./commands/currentPlayer";
 import { pegAtPosition } from "./commands/pegAtPosition";
+import { confirmMove } from "./commands/confirmMove";
+import { surrender } from "./commands/surrender";
 
 Cypress.Commands.add('loginAs', loginAs)
 Cypress.Commands.add('logout', logout)
@@ -18,6 +20,8 @@ Cypress.Commands.add('startGameWith', startGameWith)
 Cypress.Commands.add('startGameBetween', startGameBetween)
 Cypress.Commands.add('playMove',  playMove)
 Cypress.Commands.add('playMoves', playMoves)
+Cypress.Commands.add('confirmMove', confirmMove)
+Cypress.Commands.add('surrender', surrender)
 Cypress.Commands.add('pegAt', pegAt)
 Cypress.Commands.add('pegAtPosition', pegAtPosition)
 Cypress.Commands.add('currentPlayer', currentPlayer)

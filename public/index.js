@@ -207,44 +207,6 @@
     return 0 < lambda && lambda < 1 && (0 < gamma && gamma < 1);
   }
 
-  // src/twixt/board/slot.ts
-  var Slot = class {
-    constructor(position) {
-      this.direction = null;
-      this.position = position;
-    }
-    get isOccupied() {
-      return this.direction !== null;
-    }
-  };
-
-  // src/twixt/board/connection.ts
-  var Connection = class {
-    constructor(direction, slots) {
-      this.overlaps = (otherConnection) => {
-        const firstPegConnectedToOtherConnection = otherConnection.positions.some((position) => sameVectors(this.positions[0], position));
-        const secondPegConnectedToOtherConnection = otherConnection.positions.some((position) => sameVectors(this.positions[1], position));
-        if (firstPegConnectedToOtherConnection && secondPegConnectedToOtherConnection)
-          return true;
-        if (firstPegConnectedToOtherConnection || secondPegConnectedToOtherConnection)
-          return false;
-        return intersects(this.positions, otherConnection.positions);
-      };
-      this.direction = direction;
-      this.slots = slots;
-    }
-    get positions() {
-      return [this.slots[0].position, this.slots[1].position];
-    }
-  };
-
-  // src/twixt/player.ts
-  var Player = class {
-    constructor(direction) {
-      this.direction = direction;
-    }
-  };
-
   // src/twixt/parse.ts
   var parseMoves = (rawMovesString) => {
     const rawMoves = rawMovesString.split(",");
@@ -267,10 +229,56 @@
     return column + row;
   };
 
+  // src/twixt/board/slot.ts
+  var Slot = class {
+    constructor(position) {
+      this.direction = null;
+      this.position = position;
+    }
+    get isOccupied() {
+      return this.direction !== null;
+    }
+    toString() {
+      return serializeMove(this.position);
+    }
+  };
+
+  // src/twixt/board/connection.ts
+  var Connection = class {
+    constructor(direction, slots) {
+      this.overlaps = (other) => {
+        const sharedSlots = this.sharedSlots(other);
+        if (sharedSlots.length == 2)
+          return true;
+        if (sharedSlots.length == 1)
+          return false;
+        return intersects(this.positions, other.positions);
+      };
+      this.direction = direction;
+      this.slots = slots;
+    }
+    get positions() {
+      return [this.slots[0].position, this.slots[1].position];
+    }
+    toString() {
+      return `${this.slots[0]}->${this.slots[1]} (${this.direction[0]})`;
+    }
+    hasSharedSlots(other) {
+      return this.slots.some((slot) => other.slots.includes(slot));
+    }
+    sharedSlots(other) {
+      return this.slots.filter((slot) => other.slots.includes(slot));
+    }
+  };
+
+  // src/twixt/player.ts
+  var Player = class {
+    constructor(direction) {
+      this.direction = direction;
+    }
+  };
+
   // src/twixt/board.ts
-  function isPosition(data) {
-    return "row" in data && "column" in data;
-  }
   var BOARD_SIZE = 18;
   var _Board = class {
     constructor(size = BOARD_SIZE) {
@@ -290,16 +298,29 @@
       };
       this.size = size;
     }
-    place(direction, position) {
+    toString() {
+      const newRow = () => new Array(this.size).fill(".");
+      const rows = new Array(this.size).fill(null).map((x) => newRow());
+      for (let corner of this.corners)
+        rows[corner.row][corner.column] = "X";
+      for (let slot of this.slots)
+        rows[slot.position.row][slot.position.column] = slot.direction[0];
+      return rows.map((row) => row.join("  ")).join("\n");
+    }
+    isValidPlacement(direction, position) {
+      console.log(`Checking ${serializeMoves([position])}`);
       if (!this.isValidPosition(position))
-        return null;
+        return false;
       if (this.onOpponentBorder(position, direction))
-        return null;
-      let slot = this.slotAt(position);
-      if (slot)
+        return false;
+      const slot = this.slotAt(position);
+      return !slot;
+    }
+    place(direction, position) {
+      if (!this.isValidPlacement(direction, position))
         return null;
       console.log(`Placing a ${direction} peg at ${serializeMoves([position])}`);
-      slot = new Slot(position);
+      const slot = new Slot(position);
       slot.direction = direction;
       this.slots.push(slot);
       return slot;
@@ -370,17 +391,10 @@
     constructor() {
       this.players = [new Player("VERTICAL" /* Vertical */), new Player("HORIZONTAL" /* Horizontal */)];
       this.board = new Board();
-      this.currentPlayerIndex = 0;
       this.moves = [];
-      this.propagateToNeighbors = (slot, connection) => {
-        const slotsToConnect = [slot];
-        while (slotsToConnect.length > 0) {
-          const slotToConnect = slotsToConnect.shift();
-          slotToConnect[connection] = true;
-          const neighboringSlotsToConnect = this.board.neighboringSlots(slotToConnect.position).filter((slot2) => slot2.direction == this.currentPlayer.direction).filter((slot2) => !slot2[connection]);
-          slotsToConnect.push(...neighboringSlotsToConnect);
-        }
-      };
+      this.currentPlayerIndex = 0;
+      this.currentMoveIndex = 0;
+      this._winner = null;
     }
     get currentPlayer() {
       return this.players[this.currentPlayerIndex];
@@ -389,62 +403,75 @@
       return this.players[this.waitingPlayerIndex];
     }
     get winner() {
-      const slotsToCheck = this.board.slots.filter((slot) => slot.isOccupied);
-      const winningSlot = slotsToCheck.find((slot) => slot.isConnectedToStart && slot.isConnectedToEnd);
-      return winningSlot ? winningSlot.direction : null;
+      if (this._winner)
+        return this._winner;
+      for (let player of this.players) {
+        if (this.directionHasWon(player.direction))
+          return player.direction;
+      }
+      return null;
+    }
+    get currentMove() {
+      return this.moves[this.currentMoveIndex];
+    }
+    isValidPlacement(position) {
+      return this.board.isValidPlacement(this.currentPlayer.direction, position);
     }
     placePeg(position) {
+      if (this.currentMove)
+        return;
       const slot = this.board.place(this.currentPlayer.direction, position);
       if (!slot)
         return { slot, connectionsAdded: [] };
       this.moves.push(position);
-      if (position.row == 0 && this.currentPlayer.direction == "VERTICAL" /* Vertical */ || position.column == 0 && this.currentPlayer.direction == "HORIZONTAL" /* Horizontal */) {
+      if (this.onStartingBoundary(position))
         slot.isConnectedToStart = true;
-      }
-      if (position.row == this.board.size - 1 && this.currentPlayer.direction == "VERTICAL" /* Vertical */ || position.column == this.board.size - 1 && this.currentPlayer.direction == "HORIZONTAL" /* Horizontal */) {
+      if (this.onEndingBoundary(position))
         slot.isConnectedToEnd = true;
-      }
       const connections = this.addConnections(position, slot);
-      this.endTurn();
       return { slot, connectionsAdded: connections };
     }
-    removePeg(position) {
-      const removed = this.board.removePeg(this.waitingPlayer.direction, position);
+    removeConnection(position) {
+    }
+    undo() {
+      if (!this.currentMove)
+        return;
+      const position = this.moves.pop();
+      const removed = this.board.removePeg(this.currentPlayer.direction, position);
       if (!removed)
         return;
-      this.moves.push(position);
       const neighboringSlots = this.board.neighboringSlots(position);
       for (let neighbor of neighboringSlots) {
-        this.board.disconnect(this.waitingPlayer.direction, [position, neighbor.position]);
+        this.board.disconnect(this.currentPlayer.direction, [position, neighbor.position]);
       }
-      this.endTurn();
     }
     endTurn() {
+      this.currentMoveIndex = this.moves.length;
       this.currentPlayerIndex = this.waitingPlayerIndex;
+    }
+    surrender(direction) {
+      this._winner = direction == "HORIZONTAL" /* Horizontal */ ? "VERTICAL" /* Vertical */ : "HORIZONTAL" /* Horizontal */;
     }
     parse(rawMoves) {
       const positions = parseMoves(rawMoves);
       for (let position of positions) {
-        if (this.board.slotAt(position)) {
-          this.removePeg(position);
-        } else {
-          this.placePeg(position);
-        }
+        this.placePeg(position);
+        this.endTurn();
       }
     }
     get serialize() {
       return serializeMoves(this.moves);
     }
+    onEndingBoundary(position) {
+      return position.row == this.board.size - 1 && this.currentPlayer.direction == "VERTICAL" /* Vertical */ || position.column == this.board.size - 1 && this.currentPlayer.direction == "HORIZONTAL" /* Horizontal */;
+    }
+    onStartingBoundary(position) {
+      return position.row == 0 && this.currentPlayer.direction == "VERTICAL" /* Vertical */ || position.column == 0 && this.currentPlayer.direction == "HORIZONTAL" /* Horizontal */;
+    }
     addConnections(position, slot) {
       const neighboringSlots = this.board.neighboringSlots(position);
       const neighboringSlotsWithColor = neighboringSlots.filter((slot2) => slot2.direction == this.currentPlayer.direction);
       const connections = neighboringSlotsWithColor.map((neighbor) => this.connect(neighbor, slot));
-      if ([this.board.slotAt(position), ...neighboringSlotsWithColor].some((slot2) => slot2.isConnectedToStart)) {
-        this.propagateToNeighbors(this.board.slotAt(position), "isConnectedToStart");
-      }
-      if ([this.board.slotAt(position), ...neighboringSlotsWithColor].some((slot2) => slot2.isConnectedToEnd)) {
-        this.propagateToNeighbors(this.board.slotAt(position), "isConnectedToEnd");
-      }
       return connections.filter(Boolean);
     }
     connect(slot1, slot2) {
@@ -452,6 +479,28 @@
     }
     get waitingPlayerIndex() {
       return (this.currentPlayerIndex + 1) % this.players.length;
+    }
+    directionHasWon(direction) {
+      console.log(`Checking ${direction}`);
+      const connections = this.board.connections.filter((connection2) => connection2.direction == direction);
+      const checkedConnections = /* @__PURE__ */ new Set();
+      const checked = checkedConnections.has.bind(checkedConnections);
+      const connectionsToCheck = connections.filter((connection2) => {
+        return connection2.slots.some((slot) => slot.isConnectedToStart);
+      });
+      let connection;
+      let attempts = 0;
+      while (connectionsToCheck.length > 0 && attempts < 10) {
+        attempts++;
+        connection = connectionsToCheck.shift();
+        console.log(`Checking ${connection}`);
+        checkedConnections.add(connection);
+        if (connection.slots.some((slot) => slot.isConnectedToEnd))
+          return true;
+        const neighboringConnections = connections.filter((other) => connection.hasSharedSlots(other));
+        connectionsToCheck.push(...neighboringConnections.filter((neighbor) => !checked(neighbor)));
+      }
+      return false;
     }
   };
 
@@ -469,8 +518,8 @@
     get gamePath() {
       return `games/${this.id}`;
     }
-    get movesPath() {
-      return this.gamePath + "/moves";
+    get actionsPath() {
+      return this.gamePath + "/actions";
     }
     get firstPlayerPath() {
       return this.gamePath + "/firstPlayer";
@@ -480,13 +529,10 @@
       this.id = id || generateId();
     }
     subscribe(callback) {
-      this.dataStore.onChildAdded(this.movesPath, (data) => {
-        if (isPosition(data))
-          callback(data);
-      });
+      this.dataStore.onChildAdded(this.actionsPath, callback);
     }
-    write(position) {
-      this.dataStore.append(this.movesPath, position);
+    write(action) {
+      this.dataStore.append(this.actionsPath, action);
     }
     setFirstPlayer(name4) {
       this.dataStore.write(this.firstPlayerPath, name4);
@@ -512,13 +558,12 @@
   // src/twixt/gameUI/renderer/renderPeg.ts
   var PEG_RADIUS = 525e-5;
   var ANIMATION_SPEED = 0.05;
-  var drawPeg = (pegAnimation, canvas, gapSize) => {
+  var drawPeg = (pegAnimation, canvas, gapSize, electrified) => {
     const slotCoordinates = positionToCoordinates(pegAnimation.peg.position, gapSize);
-    canvas.drawCircle(
-      slotCoordinates,
-      pegRadius(pegAnimation.completion, radiusValue, canvas),
-      COLORS[ColorForDirection.get(pegAnimation.peg.direction)]
-    );
+    const colors = electrified ? COLORS : DIM_COLORS;
+    let pegColor = colors[ColorForDirection.get(pegAnimation.peg.direction)];
+    const radius = pegRadius(pegAnimation.completion, radiusValue, canvas);
+    canvas.drawCircle(slotCoordinates, radius, pegColor);
     setNextFrame(pegAnimation, ANIMATION_SPEED);
   };
   var pegRadius = (completion, animation, canvas) => {
@@ -541,7 +586,7 @@
       return positionToCoordinates(position, gapSize);
     });
     canvas.drawLine(
-      COLORS[ColorForDirection.get(animatedConnection.connection.direction)],
+      COLORS[ColorForDirection.get(animatedConnection.connection.direction)] + "99",
       connectionWidth(canvas),
       coordinates[0],
       coordinates[1]
@@ -558,8 +603,16 @@
   };
 
   // src/twixt/gameUI/renderer/renderElectrifiedLine.ts
-  var ELECTRICITY_WIDTH = 15e-4;
-  var ANIMATION_SPEED3 = 2e-3;
+  var ELECTRICITY_WIDTH = 2e-3;
+  var HIGH_FIDELITY_ANIMATION_SPEED = 1e-3;
+  var MEDIUM_FIDELITY_ANIMATION_SPEED = 15e-4;
+  var LOW_FIDELITY_ANIMATION_SPEED = 5e-3;
+  var HIGH_FIDELITY_SEGMENTS = 50;
+  var MEDIUM_FIDELITY_SEGMENTS = 20;
+  var LOW_FIDELITY_SEGMENTS = 7;
+  var HIGH_FIDELITY_PERTURBATION = 0.2;
+  var MEDIUM_FIDELITY_PERTURBATION = 0.1;
+  var LOW_FIDELITY_PERTURBATION = 0.1;
   var ElectrifiedLines = [];
   var drawElectrifiedLine = (from, to, canvas, fidelity) => {
     const fromVector = coordinatesToVector(from);
@@ -594,12 +647,12 @@
     return electrifiedLine;
   };
   var createSpark = (from, to, fidelity) => {
-    const segments = fidelity == "high" ? 70 + randomInt(7) : 10 + randomInt(3);
+    const segments = segmentsForFidelity(fidelity);
     const lineVector = subtractVectors(to, from);
     const lineSegment = scale(lineVector, 1 / segments);
     const segmentLength = Math.round(vectorLength(lineSegment));
     const perturbationVector = { row: -lineSegment.column, column: lineSegment.row };
-    const perturbationScale = 0.2;
+    const perturbationScale = perturbationForFidelity(fidelity);
     const perturbationScaleOffset = perturbationScale / 2;
     const randomPerturbation = () => Math.random() ** 2 * (Math.random() * perturbationScale - perturbationScaleOffset);
     const perturbations = [];
@@ -614,9 +667,49 @@
       const perturbed = addVectors(parallelPerturbation, perpendicularPerturbation);
       perturbations.push(perturbed);
     }
-    const intensity = 0.1 + 0.1 * Math.random();
-    const speed = ANIMATION_SPEED3 * (0.7 + Math.random() * 0.6);
+    const intensity = 0.15 + 0.1 * Math.random();
+    const speed = animationSpeed(fidelity);
     return { perturbations, minAmplitudes, completion: 0, intensity, speed };
+  };
+  var segmentsForFidelity = (fidelity) => {
+    let segments;
+    switch (fidelity) {
+      case "high":
+        segments = HIGH_FIDELITY_SEGMENTS;
+        break;
+      case "medium":
+        segments = MEDIUM_FIDELITY_SEGMENTS;
+        break;
+      case "low":
+        segments = LOW_FIDELITY_SEGMENTS;
+        break;
+    }
+    return segments + randomInt(Math.ceil(segments / 3));
+  };
+  var perturbationForFidelity = (fidelity) => {
+    switch (fidelity) {
+      case "high":
+        return HIGH_FIDELITY_PERTURBATION;
+      case "medium":
+        return MEDIUM_FIDELITY_PERTURBATION;
+      case "low":
+        return LOW_FIDELITY_PERTURBATION;
+    }
+  };
+  var animationSpeed = (fidelity) => {
+    let speed;
+    switch (fidelity) {
+      case "high":
+        speed = HIGH_FIDELITY_ANIMATION_SPEED;
+        break;
+      case "medium":
+        speed = MEDIUM_FIDELITY_ANIMATION_SPEED;
+        break;
+      case "low":
+        speed = LOW_FIDELITY_ANIMATION_SPEED;
+        break;
+    }
+    return speed * (0.7 + Math.random() * 0.6);
   };
   var sparkCoordinates = (spark) => {
     const perturbations = spark.perturbations.map((p) => scale(p, scaleCompletion(spark.completion)));
@@ -631,8 +724,8 @@
   };
   var vectorToCoordinates = (vector) => {
     return {
-      x: vector.column,
-      y: vector.row
+      x: Math.floor(vector.column),
+      y: Math.floor(vector.row)
     };
   };
   function randomInt(max) {
@@ -643,6 +736,7 @@
   }
 
   // src/twixt/gameUI/renderer.ts
+  var MIN_FRAME_RATE = 20;
   var EMPTY_SLOT_RADIUS = 3e-3;
   var BOUNDARY_WIDTH = 3e-3;
   var EMPTY_SLOT_COLOR = "#999";
@@ -651,6 +745,10 @@
     "RED": "#F72595",
     "BLUE": "#4682F4"
   };
+  var DIM_COLORS = {
+    "RED": "#ae1f6a",
+    "BLUE": "#3463bc"
+  };
   var BOARD_PADDING = 1;
   var LABEL_COLOR = "#FAD240";
   var Renderer = class {
@@ -658,12 +756,28 @@
       this.padding = BOARD_PADDING;
       this.animatedPegs = [];
       this.animatedConnections = [];
+      this.boundaryFidelity = "high";
+      this.connectionFidelity = "medium";
+      this.frameCount = 0;
       this.canvas = canvas;
       this.board = board;
       this.prerenderEmptyBoard();
+      setTimeout(() => this.checkFrameRate(), 1e3);
     }
     get slotGapSize() {
       return this.canvas.size / (this.board.size + 2 * this.padding);
+    }
+    checkFrameRate() {
+      console.log("Frame Rate:", this.frameCount);
+      if (this.frameCount < MIN_FRAME_RATE) {
+        this.boundaryFidelity = "medium";
+        this.connectionFidelity = "low";
+      } else {
+        this.boundaryFidelity = "high";
+        this.connectionFidelity = "medium";
+      }
+      this.frameCount = 0;
+      setTimeout(() => this.checkFrameRate(), 1e3);
     }
     setConnectionDirection(direction) {
       this.connectionDirection = direction;
@@ -673,6 +787,7 @@
     }
     draw() {
       window.requestAnimationFrame(() => {
+        this.frameCount += 1;
         this.canvas.clear();
         this.canvas.prerender();
         this.drawConnections();
@@ -734,7 +849,7 @@
     electrifyBoundaries() {
       const electrifiedBoundaries = this.boundaryDirection == "VERTICAL" /* Vertical */ ? this.verticalBoundaries() : this.horizontalBoundaries();
       for (let boundary of electrifiedBoundaries) {
-        drawElectrifiedLine(boundary.from, boundary.to, this.canvas, "high");
+        drawElectrifiedLine(boundary.from, boundary.to, this.canvas, this.boundaryFidelity);
       }
     }
     drawConnections() {
@@ -754,7 +869,8 @@
           animatedPeg = { peg: slot, completion: 0 };
           this.animatedPegs.push(animatedPeg);
         }
-        drawPeg(animatedPeg, this.canvas, this.slotGapSize);
+        const electrified = slot.direction == this.connectionDirection;
+        drawPeg(animatedPeg, this.canvas, this.slotGapSize, electrified);
       }
     }
     drawElectricity() {
@@ -765,7 +881,7 @@
             positionToCoordinates(connection.slots[0].position, this.slotGapSize),
             positionToCoordinates(connection.slots[1].position, this.slotGapSize),
             this.canvas,
-            "low"
+            this.connectionFidelity
           );
         }
       }
@@ -806,8 +922,8 @@
   };
   var positionToCoordinates = (position, gapSize) => {
     return {
-      x: (position.column + BOARD_PADDING + 0.5) * gapSize,
-      y: (position.row + BOARD_PADDING + 0.5) * gapSize
+      x: Math.floor((position.column + BOARD_PADDING + 0.5) * gapSize),
+      y: Math.floor((position.row + BOARD_PADDING + 0.5) * gapSize)
     };
   };
 
@@ -890,50 +1006,46 @@
   ]);
   var GameUI = class {
     constructor(game, gameData, player, onComplete) {
-      this.canvasClicked = (cursorPosition) => {
-        if (ColorForDirection.get(this.game.currentPlayer.direction) != this.color && !this.moveInProgress)
-          return;
-        const positionClicked = {
-          row: Math.floor(cursorPosition.y / this.slotGapSize) - BOARD_PADDING,
-          column: Math.floor(cursorPosition.x / this.slotGapSize) - BOARD_PADDING
-        };
-        console.log("Position Clicked: ", positionClicked);
-        if (this.moveInProgress)
-          this.game.removePeg(this.moveInProgress);
-        const peg = this.game.placePeg(positionClicked);
-        if (!peg.slot) {
-          console.log("Placing peg failed?", peg);
-          return;
-        }
-        this.moveInProgress = positionClicked;
-        this.render();
-        console.log("Rendered");
-        this.confirmButton.disabled = false;
-        console.log("Confirm button active");
+      this.undo = () => {
+        this.gameData.write({ kind: "UNDO" });
       };
-      this.confirmMove = () => {
+      this.endTurn = () => {
         console.log("Move confirmed");
-        this.gameData.write(this.moveInProgress);
-        this.confirmButton.disabled = true;
-        console.log("Confirm button deactivated");
+        this.gameData.write({ kind: "END_TURN" });
       };
-      this.moveMade = (position) => {
-        console.debug(`Move made by ${this.game.currentPlayer.direction}: { row: ${position.row}, column: ${position.column} }`);
-        if (this.moveInProgress) {
-          this.moveInProgress = null;
-        } else {
-          this.game.placePeg(position);
+      this.surrender = () => {
+        console.log("I SURRENDER!");
+        this.gameData.write({ kind: "SURRENDER", direction: this.direction });
+      };
+      this.actionReceived = (action) => {
+        console.log("Received Action:", action);
+        switch (action.kind) {
+          case "PLACE_PEG":
+            const placePegResult = this.game.placePeg(action.position);
+            console.debug(`Move made by ${this.game.currentPlayer.direction}: ${placePegResult.slot}`);
+            break;
+          case "UNDO":
+            this.game.undo();
+            this.actionButtons.get("confirm").disabled = true;
+            this.actionButtons.get("undo").disabled = true;
+            break;
+          case "END_TURN":
+            this.game.endTurn();
+            this.moveInProgress = null;
+            this.actionButtons.get("confirm").disabled = true;
+            this.actionButtons.get("undo").disabled = true;
+            break;
+          case "SURRENDER":
+            this.game.surrender(action.direction);
         }
         this.renderer.setConnectionDirection(this.game.currentPlayer.direction);
         this.render();
         if (this.game.winner) {
+          this.setCurrentPlayerColor(this.game.winner);
           this.playerStatusSpan.innerText = "wins!";
           this.onComplete();
         } else {
-          const color = ColorForDirection.get(this.game.currentPlayer.direction);
-          this.currentPlayerSpan.innerText = color;
-          this.currentPlayerSpan.setAttribute("color", color);
-          console.log("Set span to ", color);
+          this.setCurrentPlayerColor(this.game.currentPlayer.direction);
         }
       };
       this.windowResized = () => {
@@ -947,27 +1059,48 @@
       this.renderer = new Renderer(this.canvas, this.game.board);
       this.currentPlayerSpan = document.getElementById("current-player");
       this.playerStatusSpan = document.getElementById("player-status");
-      this.confirmButton = document.getElementById("game-confirm");
+      this.actionButtons = /* @__PURE__ */ new Map();
       this.onComplete = onComplete;
       const playerColorSpan = document.getElementById("player-color");
       gameData.getFirstPlayer((firstPlayer) => {
         this.color = player == firstPlayer ? "RED" /* Red */ : "BLUE" /* Blue */;
+        this.direction = player == firstPlayer ? "VERTICAL" /* Vertical */ : "HORIZONTAL" /* Horizontal */;
         this.setPlayerColor(playerColorSpan, this.color);
       });
       this.setPlayerColor(this.currentPlayerSpan, "RED" /* Red */);
+      this.playerStatusSpan.innerText = "to move";
     }
     start() {
       this.canvas.setDimensions();
       this.renderer.prerenderEmptyBoard();
       window.addEventListener("resize", this.windowResized);
       document.addEventListener("DOMContentLoaded", this.windowResized);
-      this.gameData.subscribe(this.moveMade);
+      this.gameData.subscribe(this.actionReceived);
       this.canvas.whenClicked((cursorPosition) => this.canvasClicked(cursorPosition));
-      const newConfirmButton = this.confirmButton.cloneNode(true);
-      this.confirmButton.replaceWith(newConfirmButton);
-      this.confirmButton = newConfirmButton;
-      this.confirmButton.addEventListener("click", this.confirmMove);
+      this.addActionButton("confirm", "game-confirm", this.endTurn);
+      this.addActionButton("undo", "game-undo", this.undo);
+      this.addActionButton("surrender", "game-surrender", this.surrender);
       this.renderer.draw();
+    }
+    canvasClicked(cursorPosition) {
+      if (this.game.currentPlayer.direction != this.direction)
+        return;
+      const position = {
+        row: Math.floor(cursorPosition.y / this.slotGapSize) - BOARD_PADDING,
+        column: Math.floor(cursorPosition.x / this.slotGapSize) - BOARD_PADDING
+      };
+      console.log("Position Clicked: ", position);
+      if (!this.game.isValidPlacement(position))
+        return;
+      this.placePeg(position);
+    }
+    placePeg(position) {
+      if (this.moveInProgress)
+        this.undo();
+      this.gameData.write({ kind: "PLACE_PEG", position });
+      this.moveInProgress = position;
+      this.actionButtons.get("confirm").disabled = false;
+      this.actionButtons.get("undo").disabled = false;
     }
     render() {
       this.renderer.draw();
@@ -979,6 +1112,18 @@
       this.renderer.setBoundariesDirection(color == "RED" /* Red */ ? "VERTICAL" /* Vertical */ : "HORIZONTAL" /* Horizontal */);
       span.innerText = color;
       span.setAttribute("color", color);
+    }
+    setCurrentPlayerColor(direction) {
+      const color = ColorForDirection.get(direction);
+      this.currentPlayerSpan.innerText = color;
+      this.currentPlayerSpan.setAttribute("color", color);
+    }
+    addActionButton(name4, buttonId, actionHandler) {
+      const buttonElement = document.getElementById(buttonId);
+      const newButton = buttonElement.cloneNode(true);
+      buttonElement.replaceWith(newButton);
+      newButton.addEventListener("click", actionHandler);
+      this.actionButtons.set(name4, newButton);
     }
   };
 

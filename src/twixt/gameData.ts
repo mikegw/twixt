@@ -1,6 +1,7 @@
 import {isPosition, Position} from "./board";
 import {DataStore} from "../dataStore";
 import {generateId} from "../generateId";
+import { Action } from "./action";
 
 export class GameData {
   id: string
@@ -10,8 +11,8 @@ export class GameData {
     return `games/${this.id}`
   }
 
-  get movesPath(): string {
-    return this.gamePath + '/moves'
+  get actionsPath(): string {
+    return this.gamePath + '/actions'
   }
 
   get firstPlayerPath(): string {
@@ -23,14 +24,12 @@ export class GameData {
     this.id = id || generateId()
   }
 
-  subscribe(callback: (position: Position) => void){
-    this.dataStore.onChildAdded(this.movesPath, (data) => {
-      if (isPosition(data)) callback(data)
-    })
+  subscribe(callback: (action: Action) => void){
+    this.dataStore.onChildAdded(this.actionsPath, callback)
   }
 
-  write(position: Position) {
-    this.dataStore.append(this.movesPath, position)
+  write(action: Action) {
+    this.dataStore.append(this.actionsPath, action)
   }
 
   setFirstPlayer(name: string) {

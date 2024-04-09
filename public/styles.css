@@ -210,6 +210,10 @@ button svg {
     color: blue;
 }
 
+#fa-flag {
+    color: white
+}
+
 #add use:first-child, #question use:first-child {
     color: white;
 }
@@ -257,8 +261,11 @@ li.player[invite="accepted"] .play-game {
     width: 1px;
 }
 
-.back-button, .confirm-button, .log-out-button {
+.back-button, .log-out-button, #game-action-buttons {
     position: fixed;
+}
+
+.back-button, .confirm-button, .log-out-button {
     height: 2em;
     width: 2em;
 }
@@ -271,15 +278,15 @@ li.player[invite="accepted"] .play-game {
     left: 1em;
 }
 
-.log-out-button, .confirm-button {
+.log-out-button, #game-action-buttons {
     right: 2em;
 }
 
-.confirm-button {
+#game-action-buttons {
     bottom: 2em;
 }
 
-.back-button svg, .log-out-button svg, .confirm-button svg {
+.back-button svg, .log-out-button svg, #game-action-buttons svg {
     height: 1.5em;
     width: 1.5em;
 }

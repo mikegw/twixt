@@ -19,6 +19,7 @@ describe('Peg Placement', () => {
     const game = new Game()
     const position: Position = { row: 5, column: 4 }
     game.placePeg(position)
+    game.endTurn()
 
     const result = game.placePeg(position)
 
@@ -55,7 +56,10 @@ describe('Peg Placement', () => {
   it('connects two pegs of the same color an L-shape apart', () => {
     const game = new Game()
     game.placePeg({ row: 1, column: 1 })
+    game.endTurn()
+
     game.placePeg({ row: 10, column: 10 })
+    game.endTurn()
 
     const result = game.placePeg({ row: 2, column: 3 })
 
@@ -65,6 +69,7 @@ describe('Peg Placement', () => {
   it('only connects pegs of the same color', () => {
     const game = new Game()
     game.placePeg({ row: 1, column: 1 })
+    game.endTurn()
 
     const result = game.placePeg({ row: 2, column: 3 })
 
@@ -74,9 +79,16 @@ describe('Peg Placement', () => {
   it('can create more than one connection at a time', () => {
     const game = new Game()
     game.placePeg({ row: 1, column: 1 })
+    game.endTurn()
+
     game.placePeg({ row: 10, column: 10 })
+    game.endTurn()
+
     game.placePeg({ row: 4, column: 4 })
+    game.endTurn()
+
     game.placePeg({ row: 9, column: 10 })
+    game.endTurn()
 
     const result = game.placePeg({ row: 2, column: 3 })
 
@@ -86,8 +98,13 @@ describe('Peg Placement', () => {
   it('does not add overlapping connections', () => {
     const game = new Game()
     game.placePeg({ row: 1, column: 1 })
+    game.endTurn()
+
     game.placePeg({ row: 2, column: 1 })
+    game.endTurn()
+
     game.placePeg({ row: 2, column: 3 })
+    game.endTurn()
 
     const result = game.placePeg({ row: 1, column: 3 })
 
@@ -97,18 +114,34 @@ describe('Peg Placement', () => {
   it('can place connections for each player', () => {
     const game = new Game()
     game.placePeg({ row: 1, column: 1 })
+    game.endTurn()
+
     game.placePeg({ row: 4, column: 4 })
+    game.endTurn()
+
     game.placePeg({ row: 2, column: 3 })
+    game.endTurn()
+
     game.placePeg({ row: 5, column: 6 })
+    game.endTurn()
+
     expect(game.board.connections.length).to.eq(2)
   })
 
   it('can place multiple connections for a player', () => {
     const game = new Game()
     game.placePeg({ row: 0, column: 1 })
+    game.endTurn()
+
     game.placePeg({ row: 1, column: 0 })
+    game.endTurn()
+
     game.placePeg({ row: 2, column: 2 })
+    game.endTurn()
+
     game.placePeg({ row: 2, column: 0 })
+    game.endTurn()
+
     game.placePeg({ row: 0, column: 3 })
     expect(game.board.connections.length).to.eq(2)
   })
@@ -124,29 +157,49 @@ describe('Peg Placement', () => {
     const game = new Game()
 
     game.placePeg({ row: 0, column: 1 })
+    game.endTurn()
+
     game.placePeg({ row: 2, column: 2 })
+    game.endTurn()
+
     game.placePeg({ row: 1, column: 1 })
 
     expect(game.board.slots[2].direction).to.eq(Direction.Vertical)
   })
 
-  it('can remove a peg from the board', () => {
+  it('can undo a move', () => {
     const game = new Game()
     const position = { row: 0, column: 1 }
     game.placePeg(position)
-    game.removePeg(position)
+    game.undo()
     expect(game.board.slotAt(position)).to.be.undefined
   })
 
-  describe('when removing a peg', () => {
+  describe('when undoing a move', () => {
+    it('removes the most recently placed peg', () => {
+      const game = new Game()
+
+      game.placePeg({ row: 0, column: 1 })
+      game.endTurn()
+
+      game.placePeg({ row: 1, column: 0 })
+      game.undo()
+
+      expect(game.board.slotAt({ row: 0, column: 1 })).not.to.be.undefined
+    })
+
     it('removes connections to neighboring pegs', () => {
       const game = new Game()
 
       game.placePeg({ row: 0, column: 1 })
+      game.endTurn()
+
       game.placePeg({ row: 1, column: 0 })
+      game.endTurn()
+
       game.placePeg({ row: 1, column: 3 })
 
-      game.removePeg({ row: 1, column: 3 })
+      game.undo()
 
       expect(game.board.connections).to.be.empty
     })
@@ -155,13 +208,21 @@ describe('Peg Placement', () => {
       const game = new Game()
 
       game.placePeg({ row: 0, column: 1 })
+      game.endTurn()
+
       game.placePeg({ row: 1, column: 0 })
+      game.endTurn()
+
       game.placePeg({ row: 1, column: 3 })
+      game.endTurn()
+
       game.placePeg({ row: 2, column: 0 })
+      game.endTurn()
+
       game.placePeg({ row: 3, column: 4 })
       expect(game.board.connections.length).to.eq(2)
 
-      game.removePeg({ row: 3, column: 4 })
+      game.undo()
 
       expect(game.board.connections).not.to.be.empty
     })

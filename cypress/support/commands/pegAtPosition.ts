@@ -21,19 +21,13 @@ const colorOfPixel = (ctx: CanvasRenderingContext2D, coordinates: { x: number, y
   const [r, g, b] = Array.from(pixelColor.slice(0, 3))
   const hex = ((r << 16) | (g << 8) | b).toString(16)
   const colorCode = "#" + ("000000" + hex).slice(-6).toUpperCase()
+  console.log(`Color of Pixel: ${colorCode}`)
   let color: Color
 
-  switch (colorCode) {
-    case COLORS[Color.Red]:
-    case '#F842A3': // Red but highlighted
-      color = Color.Red
-      break;
-    case COLORS[Color.Blue]:
-    case '#5F93F5': // Blue but highlighted
-      color = Color.Blue
-      break;
-    default:
-      color = null
+  if (r > 172) {// #B0....
+    color = Color.Red
+  } else if (b > 172) {
+    color = Color.Blue
   }
 
   return color

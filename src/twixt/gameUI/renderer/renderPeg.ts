@@ -1,4 +1,4 @@
-import { COLORS, positionToCoordinates } from "../renderer";
+import { COLORS, DIM_COLORS, positionToCoordinates } from "../renderer";
 import { Slot } from "../../board/slot";
 import { Canvas } from "../canvas";
 import { ColorForDirection } from "../../gameUI";
@@ -12,14 +12,13 @@ export type AnimatedPeg = {
   completion: number
 }
 
-export const drawPeg = (pegAnimation: AnimatedPeg, canvas: Canvas, gapSize: number) => {
+export const drawPeg = (pegAnimation: AnimatedPeg, canvas: Canvas, gapSize: number, electrified: boolean) => {
   const slotCoordinates = positionToCoordinates(pegAnimation.peg.position, gapSize)
+  const colors = electrified ? COLORS : DIM_COLORS
+  let pegColor = colors[ColorForDirection.get(pegAnimation.peg.direction)]
 
-  canvas.drawCircle(
-    slotCoordinates,
-    pegRadius(pegAnimation.completion, radiusValue, canvas),
-    COLORS[ColorForDirection.get(pegAnimation.peg.direction)]
-  )
+  const radius = pegRadius(pegAnimation.completion, radiusValue, canvas)
+  canvas.drawCircle(slotCoordinates, radius, pegColor)
 
   setNextFrame(pegAnimation, ANIMATION_SPEED)
 }

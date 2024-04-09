@@ -20,6 +20,9 @@
     <i data-fa-symbol="fa-add" class="fa-solid fa-circle-plus fa-fw"></i>
     <i data-fa-symbol="fa-question" class="fa-solid fa-circle-question fa-fw"></i>
     <i data-fa-symbol="fa-circle" class="fa-solid fa-circle fa-fw"></i>
+    <i data-fa-symbol="fa-undo" class="fa-solid fa-undo fa-fw fa-xl"></i>
+    <i data-fa-symbol="fa-undo-black" class="fa-solid fa-undo fa-fw fa-xl" style="color: black"></i>
+    <i data-fa-symbol="fa-flag-black" class="fa-solid fa-flag fa-fw fa-xl" style="color: black"></i>
 
     <svg style="display: none">
       <symbol id="add">
@@ -30,6 +33,22 @@
       <symbol id="question">
         <use xlink:href="#fa-circle" transform="scale(0.95) translate(3,3)"></use>
         <use xlink:href="#fa-question"></use>
+      </symbol>
+
+      <symbol id="undo">
+        <mask id="undo-mask">
+          <rect width="100%" height="100%" fill="white"/>
+          <use xlink:href="#fa-undo-black" transform="scale(0.6) translate(35,35)" />
+        </mask>
+        <use xlink:href="#fa-circle" mask="url(#undo-mask)"></use>
+      </symbol>
+
+      <symbol id="flag">
+        <mask id="flag-mask">
+          <rect width="100%" height="100%" fill="white"/>
+          <use xlink:href="#fa-flag-black" transform="rotate(20,50,50) scale(0.6) translate(37,35)" />
+        </mask>
+        <use xlink:href="#fa-circle" mask="url(#flag-mask)"></use>
       </symbol>
     </svg>
 
@@ -98,9 +117,21 @@
 
         <ul id="moves-list"></ul>
 
-        <button id="game-confirm" class="icon-button confirm-button" disabled>
-          <i class="fa-solid fa-circle-check fa-xl"></i>
-        </button>
+        <div id="game-action-buttons">
+          <button id="game-confirm" class="icon-button confirm-button" disabled>
+            <i class="fa-solid fa-circle-check fa-xl"></i>
+          </button>
+          <button id="game-undo" class="icon-button undo-button" disabled>
+            <svg viewBox="0 0 100 100" class="fa-xl">
+              <use xlink:href="#undo"></use>
+            </svg>
+          </button>
+          <button id="game-surrender" class="icon-button surrender-button">
+            <svg viewBox="0 0 100 100" class="fa-xl">
+              <use xlink:href="#flag"></use>
+            </svg>
+          </button>
+        </div>
       </article>
     </main>
   </body>

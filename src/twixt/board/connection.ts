@@ -16,15 +16,24 @@ export class Connection {
     return [this.slots[0].position, this.slots[1].position]
   }
 
-  overlaps = (otherConnection: Connection) => {
-    const firstPegConnectedToOtherConnection =
-      otherConnection.positions.some(position => sameVectors(this.positions[0], position))
-    const secondPegConnectedToOtherConnection =
-      otherConnection.positions.some(position => sameVectors(this.positions[1], position))
+  toString() {
+    return `${this.slots[0]}->${this.slots[1]} (${this.direction[0]})`
+  }
 
-    if (firstPegConnectedToOtherConnection && secondPegConnectedToOtherConnection) return true
-    if (firstPegConnectedToOtherConnection || secondPegConnectedToOtherConnection) return false
+  hasSharedSlots(other: Connection): Boolean {
+    return this.slots.some(slot => other.slots.includes(slot))
+  }
 
-    return intersects(this.positions, otherConnection.positions)
+  sharedSlots(other: Connection): Slot[] {
+    return this.slots.filter(slot => other.slots.includes(slot))
+  }
+
+  overlaps = (other: Connection): Boolean => {
+    const sharedSlots = this.sharedSlots(other)
+
+    if (sharedSlots.length == 2) return true
+    if (sharedSlots.length == 1) return false
+
+    return intersects(this.positions, other.positions)
   }
 }

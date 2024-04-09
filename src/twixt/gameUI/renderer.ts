@@ -5,7 +5,9 @@ import { AnimatedPeg, drawPeg, pegRadius } from "./renderer/renderPeg";
 import { AnimatedConnection, drawConnection } from "./renderer/renderConnection";
 import { Color } from "../gameUI";
 import { addVectors, scale, subtractVectors, Vector, vectorLength } from "../board/vector";
-import { drawElectrifiedLine } from "./renderer/renderElectrifiedLine";
+import { drawElectrifiedLine, Fidelity } from "./renderer/renderElectrifiedLine";
+
+const MIN_FRAME_RATE = 20
 
 const EMPTY_SLOT_RADIUS = 0.003
 const BOUNDARY_WIDTH = 0.003
@@ -14,10 +16,16 @@ const EMPTY_SLOT_COLOR = '#999'
 const HIGHLIGHT_COLOR = '#FFFFFF22'
 
 type ColorHex =  '#F72595' | '#4682F4'
+type DimColorHex = '#ae1f6a' | '#3463bc'
 
 export const COLORS: Record<Color, ColorHex> = {
   'RED': '#F72595',
   'BLUE': '#4682F4'
+}
+
+export const DIM_COLORS: Record<Color, DimColorHex> = {
+  'RED': '#ae1f6a',
+  'BLUE': '#3463bc'
 }
 
 export const BOARD_PADDING = 1
@@ -38,6 +46,9 @@ export class Renderer {
   padding = BOARD_PADDING
   animatedPegs: AnimatedPeg[] = []
   animatedConnections: AnimatedConnection[] = []
+  boundaryFidelity: Fidelity = 'high'
+  connectionFidelity: Fidelity = 'medium'
+  frameCount = 0
 
   get slotGapSize() {
     return this.canvas.size / (this.board.size + 2 * this.padding)
@@ -47,6 +58,20 @@ export class Renderer {
     this.canvas = canvas
     this.board = board
     this.prerenderEmptyBoard()
+    setTimeout(() => this.checkFrameRate(), 1000)
+  }
+
+  checkFrameRate() {
+    console.log("Frame Rate:", this.frameCount)
+    if (this.frameCount < MIN_FRAME_RATE) {
+      this.boundaryFidelity = 'medium'
+      this.connectionFidelity = 'low'
+    } else {
+      this.boundaryFidelity = 'high'
+      this.connectionFidelity = 'medium'
+    }
+    this.frameCount = 0
+    setTimeout(() => this.checkFrameRate(), 1000)
   }
 
   setConnectionDirection(direction: Direction) {
@@ -59,6 +84,7 @@ export class Renderer {
 
   draw() {
     window.requestAnimationFrame(() => {
+      this.frameCount += 1
       this.canvas.clear()
       this.canvas.prerender()
       this.drawConnections()
@@ -134,7 +160,7 @@ export class Renderer {
       this.boundaryDirection == Direction.Vertical ? this.verticalBoundaries() : this.horizontalBoundaries()
 
     for (let boundary of electrifiedBoundaries) {
-      drawElectrifiedLine(boundary.from, boundary.to, this.canvas,'high')
+      drawElectrifiedLine(boundary.from, boundary.to, this.canvas,this.boundaryFidelity)
     }
   }
 
@@ -159,7 +185,9 @@ export class Renderer {
         animatedPeg = { peg: slot, completion: 0 }
         this.animatedPegs.push(animatedPeg)
       }
-      drawPeg(animatedPeg, this.canvas, this.slotGapSize)
+      const electrified = slot.direction == this.connectionDirection
+
+      drawPeg(animatedPeg, this.canvas, this.slotGapSize, electrified)
     }
   }
 
@@ -171,7 +199,7 @@ export class Renderer {
           positionToCoordinates(connection.slots[0].position, this.slotGapSize),
           positionToCoordinates(connection.slots[1].position, this.slotGapSize),
           this.canvas,
-          'low'
+          this.connectionFidelity
         )
       }
     }
@@ -220,7 +248,7 @@ export class Renderer {
 
 export const positionToCoordinates = (position: Position, gapSize: number): Coordinates => {
   return {
-    x: (position.column + BOARD_PADDING + 0.5) * gapSize,
-    y: (position.row + BOARD_PADDING + 0.5) * gapSize
+    x: Math.floor((position.column + BOARD_PADDING + 0.5) * gapSize),
+    y: Math.floor((position.row + BOARD_PADDING + 0.5) * gapSize)
   }
 }

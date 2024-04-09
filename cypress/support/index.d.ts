@@ -16,7 +16,13 @@ declare global {
 
       playMoves(opponent: string, moves: string): Chainable<any>
 
-      playMove(move: Position, color: Color, confirm?: boolean): Chainable<any>
+      playMove(move: Position, confirm?: boolean): Chainable<any>
+
+      confirmMove(): Chainable<any>
+
+      undoMove(): Chainable<any>
+      
+      surrender(): Chainable<any>
 
       pegAt(rawPosition: string): Chainable<any>
 

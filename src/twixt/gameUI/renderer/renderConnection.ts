@@ -21,7 +21,7 @@ export const drawConnection = (animatedConnection: AnimatedConnection, canvas: C
   })
 
   canvas.drawLine(
-    COLORS[ColorForDirection.get(animatedConnection.connection.direction)],
+    COLORS[ColorForDirection.get(animatedConnection.connection.direction)] + "99",
     connectionWidth(canvas),
     coordinates[0],
     coordinates[1]

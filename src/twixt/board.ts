@@ -32,17 +32,34 @@ export class Board {
     this.size = size
   }
 
+  toString() {
+    const newRow = () => new Array(this.size).fill('.')
+    const rows = new Array(this.size).fill(null).map(x => newRow())
+    for (let corner of this.corners) rows[corner.row][corner.column] = 'X'
+    for (let slot of this.slots) rows[slot.position.row][slot.position.column] = slot.direction[0]
+
+    return rows.map(row => row.join('  ')).join("\n")
+  }
+
+  isValidPlacement(direction: Direction, position: Position) {
+    console.log(`Checking ${serializeMoves([position])}`)
+    if (!this.isValidPosition(position)) return false
+    // console.log('Valid')
+
+    if (this.onOpponentBorder(position, direction)) return false
+    // console.log('Not on opponent border')
+
+    const slot = this.slotAt(position)
+
+    return !slot
+  }
+
   place(direction: Direction, position: Position): Slot {
-    if (!this.isValidPosition(position)) return null
-
-    if (this.onOpponentBorder(position, direction)) return null
-
-    let slot = this.slotAt(position)
-    if (slot) return null
+    if (!this.isValidPlacement(direction, position)) return null
 
     console.log(`Placing a ${direction} peg at ${serializeMoves([position])}`)
 
-    slot = new Slot(position)
+    const slot = new Slot(position)
     slot.direction = direction
     this.slots.push(slot)
 

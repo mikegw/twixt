@@ -17,7 +17,7 @@ describe('Completing a game', () => {
 
     cy.get('#back-to-join-or-start').click()
 
-    cy.get('h1').contains('Join or Start Game')
+    cy.get('h2').contains('Join or Start Game')
   })
 
   it('allows players to start a new game', () => {

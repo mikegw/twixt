@@ -35,6 +35,8 @@
     "typescript": "^5.0.4"
   },
   "dependencies": {
-    "firebase": "^9.19.1"
+    "@types/node": "^20.11.30",
+    "firebase": "^9.19.1",
+    "fs": "^0.0.1-security"
   }
 }

@@ -1,5 +1,6 @@
 import { Position } from "../board";
 import { Direction } from "../player";
+import { serializeMove } from "../parse";
 
 export class Slot {
   position: Position
@@ -14,5 +15,9 @@ export class Slot {
 
   get isOccupied() {
     return this.direction !== null
+  }
+
+  toString() {
+    return serializeMove(this.position)
   }
 }

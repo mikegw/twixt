@@ -7,8 +7,11 @@ import { parseMoves, serializeMoves } from "./parse";
 export class Game {
   players = [new Player(Direction.Vertical), new Player(Direction.Horizontal)]
   board =  new Board()
-  currentPlayerIndex = 0
   moves: Position[] = []
+
+  private currentPlayerIndex = 0
+  private currentMoveIndex = 0
+  private _winner: Direction = null
 
   get currentPlayer() {
     return this.players[this.currentPlayerIndex]
@@ -19,63 +22,85 @@ export class Game {
   }
 
   get winner(): Direction {
-    const slotsToCheck = this.board.slots.filter(slot => slot.isOccupied)
-    const winningSlot = slotsToCheck.find(slot => slot.isConnectedToStart && slot.isConnectedToEnd)
-    return winningSlot ? winningSlot.direction : null
+    if (this._winner) return this._winner
+
+    for (let player of this.players) {
+      if (this.directionHasWon(player.direction)) return player.direction
+    }
+
+    return null
+  }
+
+  get currentMove(): Position {
+    return this.moves[this.currentMoveIndex];
+  }
+
+  isValidPlacement(position: Position) {
+    return this.board.isValidPlacement(this.currentPlayer.direction, position)
   }
 
   placePeg(position: Position): PlacePegResult {
+    if (this.currentMove) return;
+
     const slot = this.board.place(this.currentPlayer.direction, position)
     if (!slot) return { slot, connectionsAdded: [] }
     this.moves.push(position)
 
-    if ((position.row == 0 && this.currentPlayer.direction == Direction.Vertical) ||
-      (position.column == 0 && this.currentPlayer.direction == Direction.Horizontal)) {
-      slot.isConnectedToStart = true
-    }
-
-    if ((position.row == this.board.size - 1 && this.currentPlayer.direction == Direction.Vertical) ||
-      (position.column == this.board.size - 1 && this.currentPlayer.direction == Direction.Horizontal)) {
-      slot.isConnectedToEnd = true
-    }
+    if (this.onStartingBoundary(position)) slot.isConnectedToStart = true
+    if (this.onEndingBoundary(position)) slot.isConnectedToEnd = true
 
     const connections = this.addConnections(position, slot);
-
-    this.endTurn()
 
     return { slot, connectionsAdded: connections }
   }
 
-  removePeg(position: Position) {
-    const removed = this.board.removePeg(this.waitingPlayer.direction, position)
+  removeConnection(position: Position) {
+
+  }
+
+  undo() {
+    if (!this.currentMove) return;
+
+    const position = this.moves.pop()
+    const removed = this.board.removePeg(this.currentPlayer.direction, position)
     if (!removed) return
 
-    this.moves.push(position)
     const neighboringSlots = this.board.neighboringSlots(position)
     for (let neighbor of neighboringSlots) {
-      this.board.disconnect(this.waitingPlayer.direction,[position, neighbor.position])
+      this.board.disconnect(this.currentPlayer.direction,[position, neighbor.position])
     }
-
-    this.endTurn()
   }
 
   endTurn() {
+    this.currentMoveIndex = this.moves.length
     this.currentPlayerIndex = this.waitingPlayerIndex
+  }
+
+  surrender(direction: Direction) {
+    this._winner = direction == Direction.Horizontal ? Direction.Vertical : Direction.Horizontal
   }
 
   parse(rawMoves: string) {
     const positions = parseMoves(rawMoves)
+
     for (let position of positions) {
-      if (this.board.slotAt(position)) {
-        this.removePeg(position)
-      } else {
-        this.placePeg(position)
-      }
+      this.placePeg(position)
+      this.endTurn()
     }
   }
 
   get serialize() {
     return serializeMoves(this.moves)
+  }
+
+  private onEndingBoundary(position: Position) {
+    return (position.row == this.board.size - 1 && this.currentPlayer.direction == Direction.Vertical) ||
+      (position.column == this.board.size - 1 && this.currentPlayer.direction == Direction.Horizontal);
+  }
+
+  private onStartingBoundary(position: Position) {
+    return (position.row == 0 && this.currentPlayer.direction == Direction.Vertical) ||
+      (position.column == 0 && this.currentPlayer.direction == Direction.Horizontal);
   }
 
   private addConnections(position: Position, slot: Slot) {
@@ -87,31 +112,7 @@ export class Game {
     const connections =
       neighboringSlotsWithColor.map(neighbor => this.connect(neighbor, slot))
 
-    if ([this.board.slotAt(position), ...neighboringSlotsWithColor].some(slot => slot.isConnectedToStart)) {
-      this.propagateToNeighbors(this.board.slotAt(position), 'isConnectedToStart')
-    }
-
-    if ([this.board.slotAt(position), ...neighboringSlotsWithColor].some(slot => slot.isConnectedToEnd)) {
-      this.propagateToNeighbors(this.board.slotAt(position), 'isConnectedToEnd')
-    }
-
     return connections.filter(Boolean);
-  }
-
-  private propagateToNeighbors = (slot: Slot, connection: 'isConnectedToStart'|'isConnectedToEnd') => {
-    const slotsToConnect = [slot]
-
-    while (slotsToConnect.length > 0) {
-      const slotToConnect = slotsToConnect.shift()
-      slotToConnect[connection] = true
-
-      const neighboringSlotsToConnect =
-        this.board.neighboringSlots(slotToConnect.position)
-        .filter(slot => slot.direction == this.currentPlayer.direction)
-        .filter(slot => !slot[connection])
-
-      slotsToConnect.push(...neighboringSlotsToConnect)
-    }
   }
 
   private connect(slot1: Slot, slot2: Slot): Connection | null {
@@ -120,6 +121,40 @@ export class Game {
 
   private get waitingPlayerIndex() {
     return (this.currentPlayerIndex + 1) % this.players.length
+  }
+
+  private directionHasWon(direction: Direction): Boolean {
+    console.log(`Checking ${direction}`)
+
+    const connections =
+      this.board.connections.filter(connection => connection.direction == direction)
+
+    const checkedConnections = new Set<Connection>()
+    const checked = checkedConnections.has.bind(checkedConnections)
+
+    const connectionsToCheck = connections.filter(connection => {
+      return connection.slots.some(slot => slot.isConnectedToStart)
+    })
+
+    let connection: Connection
+    let attempts = 0
+
+    while (connectionsToCheck.length > 0 && attempts < 10) {
+      attempts++
+
+      connection = connectionsToCheck.shift()
+      console.log(`Checking ${connection}`)
+      checkedConnections.add(connection)
+
+      if (connection.slots.some(slot => slot.isConnectedToEnd)) return true
+
+      const neighboringConnections =
+        connections.filter(other => connection.hasSharedSlots(other))
+
+      connectionsToCheck.push(...neighboringConnections.filter(neighbor => !checked(neighbor) ))
+    }
+
+    return false
   }
 }
 

@@ -5,6 +5,7 @@ import { Game } from "./game";
 import { Position } from "./board";
 import { GameData } from "./gameData";
 import { Direction } from "./player";
+import { Action } from "./action";
 
 
 export enum Color {
@@ -23,9 +24,10 @@ export class GameUI {
   canvas: Canvas
   renderer: Renderer
   color: Color
+  direction: Direction
   currentPlayerSpan: HTMLSpanElement
   playerStatusSpan: HTMLSpanElement
-  confirmButton: HTMLButtonElement
+  actionButtons: Map<string,HTMLButtonElement>
   moveInProgress: Position
   onComplete: () => void
 
@@ -36,17 +38,19 @@ export class GameUI {
     this.renderer = new Renderer(this.canvas, this.game.board)
     this.currentPlayerSpan = document.getElementById('current-player')
     this.playerStatusSpan = document.getElementById('player-status')
-    this.confirmButton = document.getElementById('game-confirm') as HTMLButtonElement
+    this.actionButtons = new Map<string, HTMLButtonElement>
 
     this.onComplete = onComplete
 
     const playerColorSpan = document.getElementById('player-color')
     gameData.getFirstPlayer(firstPlayer => {
       this.color = player == firstPlayer ? Color.Red : Color.Blue
+      this.direction = player == firstPlayer ? Direction.Vertical : Direction.Horizontal
       this.setPlayerColor(playerColorSpan, this.color)
     })
 
     this.setPlayerColor(this.currentPlayerSpan, Color.Red)
+    this.playerStatusSpan.innerText = 'to move'
   }
 
   start() {
@@ -56,67 +60,84 @@ export class GameUI {
     window.addEventListener("resize", this.windowResized)
     document.addEventListener('DOMContentLoaded', this.windowResized)
 
-    this.gameData.subscribe(this.moveMade)
+    this.gameData.subscribe(this.actionReceived)
     this.canvas.whenClicked(cursorPosition => this.canvasClicked(cursorPosition))
 
-    const newConfirmButton = this.confirmButton.cloneNode(true) as HTMLButtonElement
-    this.confirmButton.replaceWith(newConfirmButton)
-    this.confirmButton = newConfirmButton
-
-    this.confirmButton.addEventListener('click', this.confirmMove)
+    this.addActionButton('confirm', 'game-confirm', this.endTurn)
+    this.addActionButton('undo', 'game-undo', this.undo)
+    this.addActionButton('surrender', 'game-surrender', this.surrender)
 
     this.renderer.draw()
   }
 
-  canvasClicked = (cursorPosition: Coordinates) => {
-    if (ColorForDirection.get(this.game.currentPlayer.direction) != this.color && !this.moveInProgress) return
+  canvasClicked(cursorPosition: Coordinates) {
+    if (this.game.currentPlayer.direction != this.direction) return
 
-    const positionClicked: Position = {
+    const position: Position = {
       row: Math.floor(cursorPosition.y / this.slotGapSize) - BOARD_PADDING,
       column:  Math.floor(cursorPosition.x / this.slotGapSize) - BOARD_PADDING
     }
 
-    console.log("Position Clicked: ", positionClicked)
-    if (this.moveInProgress) this.game.removePeg(this.moveInProgress)
+    console.log("Position Clicked: ", position)
 
-    const peg = this.game.placePeg(positionClicked)
-    if (!peg.slot) {
-      console.log("Placing peg failed?", peg)
-      return
-    }
+    if (!this.game.isValidPlacement(position)) return
 
-    this.moveInProgress = positionClicked
-    this.render()
-    console.log("Rendered")
-
-    this.confirmButton.disabled = false
-    console.log('Confirm button active')
+    this.placePeg(position)
   }
 
-  confirmMove = () => {
+  placePeg(position: Position) {
+    if (this.moveInProgress) this.undo()
+
+    this.gameData.write({kind: 'PLACE_PEG', position })
+    this.moveInProgress = position
+    this.actionButtons.get('confirm').disabled = false
+    this.actionButtons.get('undo').disabled = false
+  }
+
+  undo = () => {
+    this.gameData.write({kind: 'UNDO'})
+  }
+
+  endTurn = () => {
     console.log('Move confirmed')
-    this.gameData.write(this.moveInProgress)
-    this.confirmButton.disabled = true
-    console.log('Confirm button deactivated')
+    this.gameData.write({kind: 'END_TURN'})
   }
 
-  moveMade = (position: Position) => {
-    console.debug(`Move made by ${this.game.currentPlayer.direction}: { row: ${position.row}, column: ${position.column} }`)
-    if (this.moveInProgress) {
-      this.moveInProgress = null
-    } else {
-      this.game.placePeg(position as Position)
+  surrender = () => {
+    console.log('I SURRENDER!')
+    this.gameData.write({kind: 'SURRENDER', direction: this.direction})
+  }
+
+  actionReceived = (action: Action) => {
+    console.log('Received Action:', action)
+    switch (action.kind) {
+      case 'PLACE_PEG':
+        const placePegResult = this.game.placePeg(action.position)
+        console.debug(`Move made by ${this.game.currentPlayer.direction}: ${placePegResult.slot}`)
+        break
+      case 'UNDO':
+        this.game.undo()
+        this.actionButtons.get('confirm').disabled = true
+        this.actionButtons.get('undo').disabled = true
+        break
+      case 'END_TURN':
+        this.game.endTurn()
+        this.moveInProgress = null
+        this.actionButtons.get('confirm').disabled = true
+        this.actionButtons.get('undo').disabled = true
+        break
+      case "SURRENDER":
+        this.game.surrender(action.direction)
     }
+
     this.renderer.setConnectionDirection(this.game.currentPlayer.direction)
     this.render()
     if (this.game.winner) {
+      this.setCurrentPlayerColor(this.game.winner)
       this.playerStatusSpan.innerText = 'wins!'
       this.onComplete()
     } else {
-      const color = ColorForDirection.get(this.game.currentPlayer.direction)
-      this.currentPlayerSpan.innerText = color
-      this.currentPlayerSpan.setAttribute('color', color)
-      console.log("Set span to ", color)
+      this.setCurrentPlayerColor(this.game.currentPlayer.direction)
     }
   }
 
@@ -138,5 +159,21 @@ export class GameUI {
     this.renderer.setBoundariesDirection(color == Color.Red ? Direction.Vertical : Direction.Horizontal)
     span.innerText = color
     span.setAttribute('color', color)
+  }
+
+  private setCurrentPlayerColor(direction: Direction) {
+    const color = ColorForDirection.get(direction)
+    this.currentPlayerSpan.innerText = color
+    this.currentPlayerSpan.setAttribute('color', color)
+  }
+
+  private addActionButton(name: string, buttonId: string, actionHandler: () => void) {
+    const buttonElement =  document.getElementById(buttonId)
+    const newButton = buttonElement.cloneNode(true) as HTMLButtonElement
+    buttonElement.replaceWith(newButton)
+
+    newButton.addEventListener('click', actionHandler)
+
+    this.actionButtons.set(name, newButton)
   }
 }
