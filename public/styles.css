@@ -210,10 +210,6 @@ button svg {
     color: blue;
 }
 
-#fa-flag {
-    color: white
-}
-
 #add use:first-child, #question use:first-child {
     color: white;
 }

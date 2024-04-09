@@ -1014,8 +1014,10 @@
         this.gameData.write({ kind: "END_TURN" });
       };
       this.surrender = () => {
-        console.log("I SURRENDER!");
-        this.gameData.write({ kind: "SURRENDER", direction: this.direction });
+        if (window.confirm("Are you sure you want to surrender?")) {
+          console.log("I SURRENDER!");
+          this.gameData.write({ kind: "SURRENDER", direction: this.direction });
+        }
       };
       this.actionReceived = (action) => {
         console.log("Received Action:", action);

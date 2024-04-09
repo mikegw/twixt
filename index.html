@@ -21,6 +21,7 @@
     <i data-fa-symbol="fa-question" class="fa-solid fa-circle-question fa-fw"></i>
     <i data-fa-symbol="fa-circle" class="fa-solid fa-circle fa-fw"></i>
     <i data-fa-symbol="fa-undo" class="fa-solid fa-undo fa-fw fa-xl"></i>
+    <i data-fa-symbol="fa-flag" class="fa-solid fa-flag fa-fw fa-xl"></i>
     <i data-fa-symbol="fa-undo-black" class="fa-solid fa-undo fa-fw fa-xl" style="color: black"></i>
     <i data-fa-symbol="fa-flag-black" class="fa-solid fa-flag fa-fw fa-xl" style="color: black"></i>
 
@@ -35,12 +36,22 @@
         <use xlink:href="#fa-question"></use>
       </symbol>
 
+      <symbol id="undo-backup">
+        <use xlink:href="#fa-circle" />
+        <use xlink:href="#fa-undo" transform="scale(0.6) translate(35,35)" style="color: #17132A" />
+      </symbol>
+
       <symbol id="undo">
         <mask id="undo-mask">
           <rect width="100%" height="100%" fill="white"/>
           <use xlink:href="#fa-undo-black" transform="scale(0.6) translate(35,35)" />
         </mask>
-        <use xlink:href="#fa-circle" mask="url(#undo-mask)"></use>
+        <use xlink:href="#undo-backup" mask="url(#undo-mask)"></use>
+      </symbol>
+
+      <symbol id="flag-backup">
+        <use xlink:href="#fa-circle" />
+        <use xlink:href="#fa-flag" transform="rotate(20,50,50) scale(0.6) translate(37,35)" style="color: #17132A" />
       </symbol>
 
       <symbol id="flag">
@@ -48,7 +59,7 @@
           <rect width="100%" height="100%" fill="white"/>
           <use xlink:href="#fa-flag-black" transform="rotate(20,50,50) scale(0.6) translate(37,35)" />
         </mask>
-        <use xlink:href="#fa-circle" mask="url(#flag-mask)"></use>
+        <use xlink:href="#flag-backup" mask="url(#flag-mask)"></use>
       </symbol>
     </svg>
 

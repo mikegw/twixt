@@ -24,8 +24,10 @@ var GameUI = /** @class */ (function () {
             _this.gameData.write({ kind: 'END_TURN' });
         };
         this.surrender = function () {
-            console.log('I SURRENDER!');
-            _this.gameData.write({ kind: 'SURRENDER', direction: _this.direction });
+            if (window.confirm('Are you sure you want to surrender?')) {
+                console.log('I SURRENDER!');
+                _this.gameData.write({ kind: 'SURRENDER', direction: _this.direction });
+            }
         };
         this.actionReceived = function (action) {
             console.log('Received Action:', action);

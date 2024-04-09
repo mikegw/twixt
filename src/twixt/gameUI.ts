@@ -104,8 +104,10 @@ export class GameUI {
   }
 
   surrender = () => {
-    console.log('I SURRENDER!')
-    this.gameData.write({kind: 'SURRENDER', direction: this.direction})
+    if (window.confirm('Are you sure you want to surrender?')) {
+      console.log('I SURRENDER!')
+      this.gameData.write({ kind: 'SURRENDER', direction: this.direction })
+    }
   }
 
   actionReceived = (action: Action) => {
