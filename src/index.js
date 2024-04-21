@@ -7,6 +7,7 @@ var firebase_1 = require("./dataStore/firebase");
 var usernameList_1 = require("./usernameList");
 var localDataStore_1 = require("./dataStore/localDataStore");
 var coin_1 = require("./coin");
+var firebase_2 = require("./firebase");
 // @ts-ignore
 var config = CONFIG;
 function isHTMLElement(element) {
@@ -22,12 +23,13 @@ var hide = function (element) {
     htmlElement.classList.add('hidden');
 };
 exports.hide = hide;
+var firebaseApp = (0, firebase_2.initializeFirebase)(config);
 exports.GlobalContext = {
     currentPage: page_1.Pages.GetStarted,
     currentUser: null,
     gameId: null,
     gameInProgressKey: null,
-    dataStore: (0, firebase_1.dataStore)(config)
+    dataStore: (0, firebase_1.dataStore)(firebaseApp, config)
 };
 var USERNAME_STORAGE_KEY = 'twixt-username';
 var logoutButton = document.querySelector('.log-out-button');

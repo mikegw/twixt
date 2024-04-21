@@ -6,6 +6,7 @@ import { DataStore } from "./dataStore";
 import { UsernameList } from "./usernameList";
 import {newDataStore} from "./dataStore/localDataStore";
 import { Coin } from "./coin";
+import { initializeFirebase } from "./firebase";
 
 export type Environment = 'local' | 'test' | 'e2e' | 'production'
 
@@ -43,12 +44,14 @@ export type GlobalContextType = {
   // environment: Environment
 }
 
+const firebaseApp = initializeFirebase(config)
+
 export const GlobalContext: GlobalContextType = {
   currentPage: Pages.GetStarted,
   currentUser: null,
   gameId: null,
   gameInProgressKey: null,
-  dataStore: dataStore(config)
+  dataStore: dataStore(firebaseApp, config)
 }
 
 const USERNAME_STORAGE_KEY = 'twixt-username'

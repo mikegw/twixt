@@ -12,7 +12,6 @@ var __assign = (this && this.__assign) || function () {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.dataStore = void 0;
-var app_1 = require("firebase/app");
 var database_1 = require("firebase/database");
 var environment = 'local';
 var newDataStore = function (environment, db) {
@@ -58,9 +57,8 @@ var newSandboxDataStore = function (environmentName, db) {
     };
     return __assign(__assign({}, newDataStore(environmentName, db)), { clearEnvironment: clearEnvironment });
 };
-var dataStore = function (config) {
+var dataStore = function (app, config) {
     environment = config.environment;
-    var app = (0, app_1.initializeApp)(config.firebaseConfig, environment);
     var db = (0, database_1.getDatabase)(app);
     switch (environment) {
         case 'test':

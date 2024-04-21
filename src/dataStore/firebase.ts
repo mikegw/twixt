@@ -1,4 +1,4 @@
-import { initializeApp } from "firebase/app";
+import { FirebaseApp } from "firebase/app";
 import { getDatabase, ref, push, get, set, remove, onChildAdded, onChildChanged, onChildRemoved, DatabaseReference, Database } from "firebase/database"
 import { DataStore, TestDataStore } from "../dataStore"
 import { Config, Environment } from "../index";
@@ -59,10 +59,8 @@ const newSandboxDataStore = (environmentName: string, db: Database): TestDataSto
   return { ...newDataStore(environmentName, db), clearEnvironment }
 }
 
-export const dataStore = (config: Config) => {
+export const dataStore = (app: FirebaseApp, config: Config) => {
   environment = config.environment
-
-  const app = initializeApp(config.firebaseConfig, environment)
   const db = getDatabase(app)
 
   switch(environment) {
